@@ -10,6 +10,22 @@ plugins {
 dependencies {
     // Project "app" depends on project "utils". (Project paths are separated with ":", so ":utils" refers to the top-level "utils" project.)
     implementation(project(":utils"))
+
+    implementation(libs.pi4j.core)
+    implementation(libs.pi4j.ktx)
+    implementation(libs.pi4j.plugin.raspberrypi)
+    implementation(libs.pi4j.plugin.pigpio)
+}
+
+tasks.withType<Jar> {
+    // This allows you to run 'java -jar app.jar'
+    manifest {
+        attributes["Main-Class"] = "dev.sebastianb.ballcatcher.app.AppKt"
+    }
+
+    // This bundles all dependencies into the JAR
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from(configurations.runtimeClasspath.get().map { if (it.isDirectory) it else zipTree(it) })
 }
 
 application {

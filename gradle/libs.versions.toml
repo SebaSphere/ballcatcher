@@ -7,12 +7,18 @@ kotlin = "2.2.21"
 kotlinxDatetime = "0.7.1"
 kotlinxSerializationJSON = "1.9.0"
 kotlinxCoroutines = "1.10.2"
+pi4j = "3.0.3"
+pi4j-ktx = "2.4.0"
 
 [libraries]
 kotlinGradlePlugin = { module = "org.jetbrains.kotlin:kotlin-gradle-plugin", version.ref = "kotlin" }
 kotlinxDatetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinxSerialization = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJSON" }
 kotlinxCoroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinxCoroutines" }
+pi4j-core = { group = "com.pi4j", name = "pi4j-core", version.ref = "pi4j" }
+pi4j-ktx = { group = "com.pi4j", name = "pi4j-ktx", version.ref = "pi4j-ktx" }
+pi4j-plugin-raspberrypi = { group = "com.pi4j", name = "pi4j-plugin-raspberrypi", version.ref = "pi4j" }
+pi4j-plugin-pigpio = { group = "com.pi4j", name = "pi4j-plugin-pigpio", version.ref = "pi4j" }
 
 # Libraries can be bundled together for easier import
 [bundles]
