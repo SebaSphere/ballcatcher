@@ -20,5 +20,4 @@ jobs:
           ./gradlew jar --daemon --parallel --build-cache --configuration-cache -x test
           
       - name: Restart Service
-        # Updated to match your new service name
         run: sudo systemctl restart ballcatcher-application.service
