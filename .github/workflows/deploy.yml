@@ -10,11 +10,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
+      - name: Set executable permissions
+        run: chmod +x gradlew #
+
       - name: Build with Gradle
         run: |
+          # Source SDKMAN so 'sdk' command works in this block
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk use java 23-open
           ./gradlew clean build
           
       - name: Restart Service
-        run: sudo systemctl restart ballcatcher
+        # Updated to match your new service name
+        run: sudo systemctl restart ballcatcher-application.service
