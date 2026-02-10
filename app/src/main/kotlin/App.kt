@@ -12,7 +12,6 @@ import java.time.Instant
 fun main() {
     var magnetHit = 0
 
-    // Initialize Pi4J with the Gpiod provider for Pi 5 compatibility
     val pi4j = Pi4J.newContextBuilder()
         .add(GpioDDigitalInputProvider.newInstance())
         .setGpioChipName("gpiochip0")
@@ -29,7 +28,7 @@ fun main() {
 
     sensor.onLow {
         magnetHit++
-        println("Magnet activated $magnetHit times at ${Time.from(Instant.now())}")
+        println("Magnet has been hit $magnetHit times at ${Time.from(Instant.now())}")
     }
 
     readln() // Keep the process alive

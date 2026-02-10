@@ -15,10 +15,9 @@ jobs:
 
       - name: Build with Gradle
         run: |
-          # Source SDKMAN so 'sdk' command works in this block
           source "$HOME/.sdkman/bin/sdkman-init.sh"
           sdk use java 23-open
-          ./gradlew clean build
+          ./gradlew jar --daemon --parallel --build-cache --configuration-cache -x test
           
       - name: Restart Service
         # Updated to match your new service name
