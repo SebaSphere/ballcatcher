@@ -19,6 +19,8 @@ pi4j-core = { group = "com.pi4j", name = "pi4j-core", version.ref = "pi4j" }
 pi4j-ktx = { group = "com.pi4j", name = "pi4j-ktx", version.ref = "pi4j-ktx" }
 pi4j-plugin-raspberrypi = { group = "com.pi4j", name = "pi4j-plugin-raspberrypi", version.ref = "pi4j" }
 pi4j-plugin-pigpio = { group = "com.pi4j", name = "pi4j-plugin-pigpio", version.ref = "pi4j" }
+pi4j-plugin-gpiod = { group = "com.pi4j", name = "pi4j-plugin-gpiod", version.ref = "pi4j" }
+pi4j-library-gpiod = { group = "com.pi4j", name = "pi4j-library-gpiod", version.ref = "pi4j" }
 
 # Libraries can be bundled together for easier import
 [bundles]

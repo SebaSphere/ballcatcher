@@ -4,28 +4,34 @@ import com.pi4j.Pi4J
 import com.pi4j.io.gpio.digital.PullResistance
 import com.pi4j.ktx.io.digital.digitalInput
 import com.pi4j.ktx.io.digital.onLow
-import com.pi4j.library.pigpio.PiGpio
-import com.pi4j.plugin.pigpio.provider.gpio.digital.PiGpioDigitalInputProvider
+import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalInputProvider
 import java.sql.Time
 import java.time.Instant
+
 
 fun main() {
     var magnetHit = 0
 
-    val piGpio = PiGpio.newNativeInstance()
-
+    // Initialize Pi4J with the Gpiod provider for Pi 5 compatibility
     val pi4j = Pi4J.newContextBuilder()
-        .add(PiGpioDigitalInputProvider.newInstance(piGpio))
+        .add(GpioDDigitalInputProvider.newInstance())
+        .setGpioChipName("gpiochip0")
         .build()
 
+
+    // BCM 23 is Physical Pin 16
     val sensor = pi4j.digitalInput(23) {
         id("magnet-sensor")
+        address(23)
         pull(PullResistance.PULL_UP)
+        debounce(5000L) // 5ms debounce to prevent "chatter"
     }
 
     sensor.onLow {
         magnetHit++
-        println("Magnet has been activated $magnetHit times at ${Time.from(Instant.now())}")
+        println("Magnet activated $magnetHit times at ${Time.from(Instant.now())}")
     }
-    readln()
+
+    readln() // Keep the process alive
+    pi4j.shutdown()
 }
