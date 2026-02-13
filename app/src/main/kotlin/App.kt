@@ -28,7 +28,7 @@ fun main() {
 
     sensor.onLow {
         magnetHit++
-        println("Magnet has been hurt $magnetHit times at ${Time.from(Instant.now())}")
+        println("Magnet has been hurt $magnetHit times at ${Time.from(Instant.now())}. Magnet needs therapy ):")
     }
 
     readln() // Keep the process alive
