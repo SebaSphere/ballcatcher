@@ -15,6 +15,7 @@ dependencies {
     implementation(libs.pi4j.ktx)
     implementation(libs.pi4j.plugin.gpiod)
     implementation(libs.pi4j.library.gpiod)
+    implementation (libs.kotlinxCoroutines)
 }
 
 tasks.withType<Jar> {
