@@ -7,7 +7,6 @@ import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.gpio.digital.PullResistance
 import com.pi4j.ktx.io.digital.digitalInput
 import com.pi4j.ktx.io.digital.onLow
-import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalInputProvider
 import java.sql.Time
 import java.time.Instant
 import kotlinx.coroutines.*
@@ -25,10 +24,7 @@ val CCW_DIRECTION = DigitalState.HIGH
 
 suspend fun main() {
 
-    val pi4j = Pi4J.newContextBuilder()
-        .add(GpioDDigitalInputProvider.newInstance())
-        .setGpioChipName("gpiochip0")
-        .build()
+    val pi4j = Pi4J.newAutoContext()
 
     withContext(Dispatchers.Default) {
         this.launch {
