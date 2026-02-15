@@ -8,14 +8,15 @@ plugins {
 }
 
 dependencies {
-    // Project "app" depends on project "utils". (Project paths are separated with ":", so ":utils" refers to the top-level "utils" project.)
     implementation(project(":utils"))
 
     implementation(libs.pi4j.core)
     implementation(libs.pi4j.ktx)
-    implementation(libs.pi4j.plugin.gpiod)
-    implementation(libs.pi4j.library.gpiod)
-    implementation (libs.kotlinxCoroutines)
+
+    implementation(libs.pi4j.plugin.raspberrypi)
+    implementation(libs.pi4j.plugin.pigpio)
+
+    implementation(libs.kotlinxCoroutines)
 }
 
 tasks.withType<Jar> {
