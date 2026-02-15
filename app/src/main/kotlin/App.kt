@@ -26,17 +26,17 @@ suspend fun main() {
 
     val pi4j = Pi4J.newAutoContext()
 
-    withContext(Dispatchers.Default) {
-        this.launch {
+    coroutineScope {
+        launch {
             readMagnet(pi4j)
         }
-        this.launch {
+        launch {
             controlStepperTest(pi4j)
         }
     }
 
-    readln()
-    pi4j.shutdown()
+    awaitCancellation()
+
 }
 
 suspend fun readMagnet(pi4j: Context) {
@@ -53,7 +53,6 @@ suspend fun readMagnet(pi4j: Context) {
         magnetHit++
         println("Magnet has been hurt $magnetHit times at ${Time.from(Instant.now())}. Magnet needs therapy ):")
     }
-    readln() // Keep the process alive
 }
 
 suspend fun controlStepperTest(pi4j: Context) {
