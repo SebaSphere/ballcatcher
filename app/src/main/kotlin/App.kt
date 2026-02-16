@@ -10,8 +10,6 @@ import com.pi4j.ktx.io.digital.onLow
 import java.sql.Time
 import java.time.Instant
 import kotlinx.coroutines.*
-import kotlin.math.PI
-import kotlin.math.cos
 
 // Pi4j uses BCM
 // This correlates to the GPIO number at https://cdn.shopify.com/s/files/1/0195/1344/2404/files/pi-5-diagram.jpg?v=1762784407 on a RP5
@@ -46,7 +44,7 @@ suspend fun readMagnet(pi4j: Context) {
 
     val sensor = pi4j.digitalInput(MAGNET_PIN) {
         id("magnet-sensor")
-        address(23)
+        address(MAGNET_PIN)
         pull(PullResistance.PULL_UP)
         debounce(5000L) // 5ms debounce to prevent "chatter"
     }
@@ -73,23 +71,16 @@ suspend fun controlStepperTest(pi4j: Context) {
     val pulse = pi4j.create(configPulse)
 
     while (true) {
-        println("Starting Cosine Wave Test...")
+        println("Direction CW")
+        delay(500)
         direction.state(CW_DIRECTION)
 
-        // Run for 400 steps to see a full speed-up/slow-down cycle
-        repeat(400) { i ->
-            // Calculate a value from 0 to 1 based on a cosine wave
-            // We use (i / 400.0) to normalize the loop over 2*PI
-            val cosValue = cos(2.0 * PI * (i / 400.0))
-
-            // Map cosValue (-1 to 1) to a delay range (2ms to 20ms)
-            // (cosValue + 1) / 2 gives us a range of 0 to 1
-            val variableDelay = (2 + ((cosValue + 1) / 2) * 18).toLong()
-
+        // from what I understand, it's supposed to pulse steps (thus the high and low)
+        repeat(200) { i ->
             pulse.high()
-            delay(variableDelay)
+            delay(10)
             pulse.low()
-            delay(variableDelay)
+            delay(10)
         }
 
 //        println("Direction CCW")
