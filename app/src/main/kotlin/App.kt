@@ -30,9 +30,9 @@ suspend fun main() {
         launch {
             readMagnet(pi4j)
         }
-//        launch {
-//            controlStepperTest(pi4j)
-//        }
+        launch {
+            controlStepperTest(pi4j)
+        }
     }
 
     awaitCancellation()
