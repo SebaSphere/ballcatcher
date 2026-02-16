@@ -75,11 +75,14 @@ suspend fun controlStepperTest(pi4j: Context) {
         delay(500)
         direction.state(CW_DIRECTION)
 
-        repeat(200) {
+        repeat(200) { i ->
             pulse.high()
             delay(1)
             pulse.low()
             delay(1)
+            if (i % 50 == 0) {
+                println("Iteration $i: Pulse signal sent to GPIO $PULSE_PIN")
+            }
         }
 
 //        println("Direction CCW")
