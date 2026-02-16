@@ -30,9 +30,9 @@ suspend fun main() {
         launch {
             readMagnet(pi4j)
         }
-        launch {
-            controlStepperTest(pi4j)
-        }
+//        launch {
+//            controlStepperTest(pi4j)
+//        }
     }
 
     awaitCancellation()
@@ -75,6 +75,7 @@ suspend fun controlStepperTest(pi4j: Context) {
         delay(500)
         direction.state(CW_DIRECTION)
 
+        // from what I understand, it's supposed to pulse steps (thus the high and low)
         repeat(200) { i ->
             pulse.high()
             delay(10)
