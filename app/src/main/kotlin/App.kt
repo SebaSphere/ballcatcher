@@ -30,9 +30,9 @@ suspend fun main() {
         launch {
             readMagnet(pi4j)
         }
-        launch {
-            controlStepperTest(pi4j)
-        }
+//        launch {
+//            controlStepperTest(pi4j)
+//        }
     }
 
     awaitCancellation()
@@ -77,12 +77,11 @@ suspend fun controlStepperTest(pi4j: Context) {
 
         repeat(200) {
             pulse.high()
-            delay(1)    // 0.001s
+            delay(1)
             pulse.low()
-            delay(1)    // 0.0005s in Python, rounded to 1ms for stability
+            delay(1)
         }
 
-        // Direction CCW
         println("Direction CCW")
         delay(500)
         direction.state(CCW_DIRECTION)
