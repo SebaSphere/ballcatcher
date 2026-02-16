@@ -15,8 +15,8 @@ import kotlinx.coroutines.*
 // This correlates to the GPIO number at https://cdn.shopify.com/s/files/1/0195/1344/2404/files/pi-5-diagram.jpg?v=1762784407 on a RP5
 
 const val MAGNET_PIN = 23
-const val PULSE_PIN = 26
-const val DIRECTION_PIN = 13
+const val PULSE_PIN = 20
+const val DIRECTION_PIN = 21
 
 val CW_DIRECTION = DigitalState.LOW
 val CCW_DIRECTION = DigitalState.HIGH
