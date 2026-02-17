@@ -87,9 +87,9 @@ suspend fun controlStepperTest(pi4j: Context) {
         // from what I understand, it's supposed to pulse steps (thus the high and low)
         repeat(200) { i ->
             pulse.high()
-            delay(1)
+            delay(2)
             pulse.low()
-            delay(1)
+            delay(2)
         }
 
 //        println("Direction CCW")
