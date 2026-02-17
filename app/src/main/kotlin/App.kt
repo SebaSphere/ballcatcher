@@ -6,6 +6,7 @@ import com.pi4j.io.gpio.digital.DigitalOutput
 import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.gpio.digital.PullResistance
 import com.pi4j.ktx.io.digital.digitalInput
+import com.pi4j.ktx.io.digital.onHigh
 import com.pi4j.ktx.io.digital.onLow
 import java.sql.Time
 import java.time.Instant
@@ -48,10 +49,14 @@ suspend fun readMagnet(pi4j: Context) {
         pull(PullResistance.PULL_UP)
         debounce(5000L) // 5ms debounce to prevent "chatter"
     }
+    println("Magnet sensor initialized. Current state: ${sensor.state()}")
 
     sensor.onLow {
         magnetHit++
         println("Magnet has been hurt $magnetHit times at ${Time.from(Instant.now())}. Magnet needs therapy ):")
+    }
+    sensor.onHigh {
+        println("TEST")
     }
 }
 
