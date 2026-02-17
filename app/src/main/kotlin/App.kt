@@ -14,7 +14,7 @@ import kotlinx.coroutines.*
 // Pi4j uses BCM
 // This correlates to the GPIO number at https://cdn.shopify.com/s/files/1/0195/1344/2404/files/pi-5-diagram.jpg?v=1762784407 on a RP5
 
-const val MAGNET_PIN = 23
+const val MAGNET_PIN = 24
 const val PULSE_PIN = 20
 const val DIRECTION_PIN = 21
 
@@ -30,9 +30,9 @@ suspend fun main() {
         launch {
             readMagnet(pi4j)
         }
-        launch {
-            controlStepperTest(pi4j)
-        }
+//        launch {
+//            controlStepperTest(pi4j)
+//        }
     }
 
     awaitCancellation()
@@ -76,15 +76,12 @@ suspend fun controlStepperTest(pi4j: Context) {
         direction.state(CW_DIRECTION)
 
         // from what I understand, it's supposed to pulse steps (thus the high and low)
-//        repeat(200) { i ->
-//            pulse.high()
-//            delay(10)
-//            pulse.low()
-//            delay(10)
-//        }
-
-        // pulse high
-        pulse.high()
+        repeat(200) { i ->
+            pulse.high()
+            delay(10)
+            pulse.low()
+            delay(10)
+        }
 
 //        println("Direction CCW")
 //        delay(500)
