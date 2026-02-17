@@ -80,11 +80,10 @@ suspend fun controlStepperTest(pi4j: Context) {
     val pulse = pi4j.create(configPulse)
 
     while (true) {
-        println("Direction CW")
         delay(500)
         direction.state(CW_DIRECTION)
 
-        val totalSteps = 200
+        val totalSteps = 400
 
         var delayMs = 2L
         val stopRampStart = totalSteps - 50 // Start slowing down 50 steps before the end
@@ -101,16 +100,21 @@ suspend fun controlStepperTest(pi4j: Context) {
                 if (i % 10 == 0) delayMs++
             }
         }
-//        println("Direction CCW")
-//        delay(500)
-//        direction.state(CCW_DIRECTION)
-//
-//        repeat(200) {
-//            pulse.high()
-//            delay(1)
-//            pulse.low()
-//            delay(1)
-//        }
+
+        delay(500)
+        direction.state(CCW_DIRECTION)
+
+        repeat(totalSteps) { i ->
+            pulse.high()
+            delay(delayMs)
+            pulse.low()
+            delay(delayMs)
+
+            // Deceleration Logic: Gradually increase delay to slow down
+            if (i > stopRampStart && delayMs < 5) {
+                if (i % 10 == 0) delayMs++
+            }
+        }
     }
 
 }
