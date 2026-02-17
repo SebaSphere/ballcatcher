@@ -104,6 +104,8 @@ suspend fun controlStepperTest(pi4j: Context) {
         delay(500)
         direction.state(CCW_DIRECTION)
 
+        delayMs = 2L
+
         repeat(totalSteps) { i ->
             pulse.high()
             delay(delayMs)
