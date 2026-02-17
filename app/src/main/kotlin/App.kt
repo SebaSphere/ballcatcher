@@ -38,9 +38,9 @@ suspend fun main() {
         launch {
             readMagnet(pi4j)
         }
-//        launch {
-//            controlStepperTest(pi4j)
-//        }
+        launch {
+            controlStepperTest(pi4j)
+        }
     }
 
     awaitCancellation()
@@ -61,9 +61,6 @@ suspend fun readMagnet(pi4j: Context) {
     sensor.onLow {
         magnetHit++
         println("Magnet has been hurt $magnetHit times at ${Time.from(Instant.now())}. Magnet needs therapy ):")
-    }
-    sensor.onHigh {
-        println("TEST")
     }
 }
 
