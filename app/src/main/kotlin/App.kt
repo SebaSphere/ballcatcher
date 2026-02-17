@@ -84,14 +84,23 @@ suspend fun controlStepperTest(pi4j: Context) {
         delay(500)
         direction.state(CW_DIRECTION)
 
-        // from what I understand, it's supposed to pulse steps (thus the high and low)
-        repeat(200) { i ->
-            pulse.high()
-            delay(2)
-            pulse.low()
-            delay(2)
-        }
+        val totalSteps = 200
 
+        var delayMs = 1L // Your current 1ms speed
+        val stopRampStart = totalSteps - 50 // Start slowing down 50 steps before the end
+
+        // from what I understand, it's supposed to pulse steps (thus the high and low)
+        repeat(totalSteps) { i ->
+            pulse.high()
+            delay(delayMs)
+            pulse.low()
+            delay(delayMs)
+
+            // Deceleration Logic: Gradually increase delay to slow down
+            if (i > stopRampStart && delayMs < 5) {
+                if (i % 10 == 0) delayMs++
+            }
+        }
 //        println("Direction CCW")
 //        delay(500)
 //        direction.state(CCW_DIRECTION)
