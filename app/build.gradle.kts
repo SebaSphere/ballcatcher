@@ -16,6 +16,9 @@ dependencies {
     implementation(libs.pi4j.plugin.raspberrypi)
     implementation(libs.pi4j.plugin.pigpio)
 
+    implementation(libs.pi4j.plugin.gpiod)
+    implementation(libs.pi4j.library.gpiod)
+
     implementation(libs.kotlinxCoroutines)
 }
 

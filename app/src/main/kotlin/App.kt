@@ -8,6 +8,8 @@ import com.pi4j.io.gpio.digital.PullResistance
 import com.pi4j.ktx.io.digital.digitalInput
 import com.pi4j.ktx.io.digital.onHigh
 import com.pi4j.ktx.io.digital.onLow
+import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalInputProvider
+import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalOutputProvider
 import java.sql.Time
 import java.time.Instant
 import kotlinx.coroutines.*
@@ -25,7 +27,12 @@ val CCW_DIRECTION = DigitalState.HIGH
 
 suspend fun main() {
 
-    val pi4j = Pi4J.newAutoContext()
+
+    val pi4j = Pi4J.newContextBuilder()
+        .add(GpioDDigitalInputProvider.newInstance())  // For the Magnet
+        .add(GpioDDigitalOutputProvider.newInstance()) // For the Stepper Pulse/Dir
+        .setGpioChipName("gpiochip0")
+        .build()
 
     coroutineScope {
         launch {
