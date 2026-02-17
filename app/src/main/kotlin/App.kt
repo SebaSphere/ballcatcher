@@ -86,7 +86,7 @@ suspend fun controlStepperTest(pi4j: Context) {
 
         val totalSteps = 200
 
-        var delayMs = 1L // Your current 1ms speed
+        var delayMs = 2L
         val stopRampStart = totalSteps - 50 // Start slowing down 50 steps before the end
 
         // from what I understand, it's supposed to pulse steps (thus the high and low)
