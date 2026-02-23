@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="RemoteTargetsManager">
+    <targets>
+      <target name="Upload Pi5" type="ssh/sftp" uuid="a74da56b-1462-4fae-8490-af6779d93e65">
+        <config>
+          <option name="projectRootOnTarget" value="$USER_HOME$/actions-runner/ballcatcher_run/ballcatcher/ballcatcher/app/build/libs/" />
+          <option name="serverName" value="sebasphere@192.168.1.166:22 password" />
+          <option name="useRsync" value="true" />
+        </config>
+        <ContributedStateBase type="JavaLanguageRuntime">
+          <config>
+            <option name="homePath" value="$USER_HOME$/.sdkman/candidates/java/23-open/bin/java" />
+          </config>
+        </ContributedStateBase>
+      </target>
+    </targets>
+  </component>
+</project>

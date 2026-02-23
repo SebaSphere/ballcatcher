@@ -12,5 +12,5 @@ interface IMotorFeedback {
     val angularVelocity: Double
     // hardware sensors
     val isAtLimitSwitch: Boolean
-
+    val isOn: Boolean
 }

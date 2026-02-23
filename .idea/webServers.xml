@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="31a48cd5-201f-474e-adf6-f1f05a0a8b2a" name="Pi Deploy">
+        <fileTransfer rootFolder="/home/sebasphere" accessType="SFTP" host="192.168.1.166" port="22" sshConfigId="5857780c-4225-444b-aadc-56a78c23ac96" sshConfig="sebasphere@192.168.1.166:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" passiveMode="true" shareSSLContext="true" isUseRsync="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>

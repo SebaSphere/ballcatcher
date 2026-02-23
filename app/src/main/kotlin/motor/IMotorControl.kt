@@ -9,4 +9,14 @@ interface IMotorControl {
     // we should use this state to ramp up the state for hardware PMW
     // article on linear motor control: https://www.eetimes.com/linear-motor-control-without-the-math/
     fun tick()
+
+    // move to angle within 360 degrees of motor, suspends until reached
+    suspend fun moveToAngle(degrees: Float)
+
+    // move specified number of degrees in the clockwise direction, suspends until reached
+    suspend fun moveClockwise(degrees: Float)
+
+    // move specified number of degrees in the counter-clockwise direction, suspends until reached
+    suspend fun moveCounterClockwise(degrees: Float)
+
 }

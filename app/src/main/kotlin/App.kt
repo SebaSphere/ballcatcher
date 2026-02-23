@@ -10,20 +10,11 @@ import com.pi4j.ktx.io.digital.onHigh
 import com.pi4j.ktx.io.digital.onLow
 import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalInputProvider
 import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalOutputProvider
+import dev.sebastianb.ballcatcher.app.motor.MotorState
+import dev.sebastianb.ballcatcher.app.ship.YawJointController
 import java.sql.Time
 import java.time.Instant
 import kotlinx.coroutines.*
-
-// Pi4j uses BCM
-// This correlates to the GPIO number at https://cdn.shopify.com/s/files/1/0195/1344/2404/files/pi-5-diagram.jpg?v=1762784407 on a RP5
-
-const val MAGNET_PIN = 24
-const val PULSE_PIN = 20
-const val DIRECTION_PIN = 21
-
-val CW_DIRECTION = DigitalState.LOW
-val CCW_DIRECTION = DigitalState.HIGH
-
 
 suspend fun main() {
 
@@ -31,15 +22,56 @@ suspend fun main() {
     val pi4j = Pi4J.newContextBuilder()
         .add(GpioDDigitalInputProvider.newInstance())  // For the Magnet
         .add(GpioDDigitalOutputProvider.newInstance()) // For the Stepper Pulse/Dir
-        .setGpioChipName("gpiochip0")
         .build()
 
     coroutineScope {
+        val yawController = YawJointController(pi4j)
+        yawController.motorControl.setEnabled(true)
+        yawController.motorControl.calibrateHome()
+
         launch {
-            readMagnet(pi4j)
+            while (isActive) {
+                yawController.update()
+                yield()
+            }
         }
+
         launch {
-            controlStepperTest(pi4j)
+            while (isActive) {
+                println("Current Angle: ${yawController.motorFeedback.currentAngle}, Magnet On: ${yawController.motorFeedback.isOn}")
+                delay(1000)
+            }
+        }
+
+        launch {
+            repeat(100) { iteration ->
+                println("Starting CW/CCW iteration ${iteration + 1}")
+                
+                println("Moving 90 degrees Clockwise")
+                yawController.motorControl.moveClockwise(90f)
+                delay(1000)
+
+                println("Moving 45 degrees Counter-Clockwise")
+                yawController.motorControl.moveCounterClockwise(45f)
+                delay(1000)
+
+                println("Moving 45 degrees Counter-Clockwise")
+                yawController.motorControl.moveCounterClockwise(45f)
+                delay(1000)
+
+                println("Moving 180 degrees Clockwise")
+                yawController.motorControl.moveClockwise(180f)
+                delay(1000)
+
+                println("Moving 360 degrees Counter-Clockwise")
+                yawController.motorControl.moveCounterClockwise(360f)
+                delay(1000)
+
+                println("Moving back to 0")
+                yawController.motorControl.moveToAngle(0f)
+                delay(2000)
+            }
+            println("Movement sequence complete.")
         }
     }
 
@@ -47,6 +79,8 @@ suspend fun main() {
 
 }
 
+// These are now replaced by YawJointController
+/*
 suspend fun readMagnet(pi4j: Context) {
     var magnetHit = 0
 
@@ -118,5 +152,5 @@ suspend fun controlStepperTest(pi4j: Context) {
             }
         }
     }
-
 }
+*/
