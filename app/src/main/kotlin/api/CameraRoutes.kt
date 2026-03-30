@@ -10,7 +10,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CalibrationCaptureRequest(val count: Int)
+data class CalibrationCaptureRequest(val count: Int, val delayMs: Long = 0)
 
 fun Route.cameraRoutes() {
     route("/camera") {
@@ -18,7 +18,7 @@ fun Route.cameraRoutes() {
             val request = call.receive<CalibrationCaptureRequest>()
             val capture = StereoCalibrationCapture()
             val saved = withContext(Dispatchers.IO) {
-                capture.capture(request.count)
+                capture.capture(request.count, request.delayMs)
             }
             call.respond(CommandResponse(true, "Captured $saved calibration image pairs"))
         }

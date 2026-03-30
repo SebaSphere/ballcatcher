@@ -203,6 +203,12 @@ paths:
                   type: integer
                   description: Number of image pairs to capture
                   example: 30
+                delayMs:
+                  type: integer
+                  format: int64
+                  description: Milliseconds to wait between each capture
+                  default: 0
+                  example: 2000
       responses:
         "200":
           description: Capture complete

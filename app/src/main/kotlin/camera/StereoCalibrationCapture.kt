@@ -23,8 +23,8 @@ class StereoCalibrationCapture(
         }
     }
 
-    fun capture(count: Int): Int {
-        println("Starting calibration capture: saving $count image pairs")
+    fun capture(count: Int, delayMs: Long = 0): Int {
+        println("Starting calibration capture: saving $count image pairs with ${delayMs}ms delay")
 
         var imageId = 0
         val criteria = TermCriteria(TermCriteria.EPS + TermCriteria.MAX_ITER, 30, 0.001)
@@ -58,6 +58,10 @@ class StereoCalibrationCapture(
                     Imgcodecs.imwrite("$outputDirectory/chessboard-L$imageId.png", frameL)
                     println("Images saved at $outputDirectory/chessboard-R$imageId.png and $outputDirectory/chessboard-L$imageId.png")
                     imageId++
+
+                    if (delayMs > 0 && imageId < count) {
+                        Thread.sleep(delayMs)
+                    }
                 }
             }
         } finally {
