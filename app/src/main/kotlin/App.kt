@@ -37,6 +37,24 @@ suspend fun main() {
         }
 
         launch {
+            val button = pi4j.digitalInput(17) {  // Replace `17` with your button's actual GPIO pin.
+                id("button-input")
+                address(17)
+                pull(PullResistance.PULL_UP)
+                debounce(50000L) // Debounce for stability
+            }
+
+            button.onHigh {
+                println("Button Pressed at ${Time.from(Instant.now())}")
+            }
+
+            println("Button monitoring coroutine started.")
+            awaitCancellation()
+        }
+
+
+
+        launch {
             while (isActive) {
                 println("Current Angle: ${yawController.motorFeedback.currentAngle}, Magnet On: ${yawController.motorFeedback.isOn}")
                 delay(1000)
