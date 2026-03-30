@@ -34,6 +34,15 @@ class StereoCalibrationCapture(
         val camR = VideoCapture(rightCameraId)
         val camL = VideoCapture(leftCameraId)
 
+        println("Right camera (id=$rightCameraId) opened: ${camR.isOpened}")
+        println("Left camera (id=$leftCameraId) opened: ${camL.isOpened}")
+
+        if (!camR.isOpened || !camL.isOpened) {
+            camR.release()
+            camL.release()
+            error("Failed to open cameras — right: ${camR.isOpened}, left: ${camL.isOpened}")
+        }
+
         camR.set(Videoio.CAP_PROP_FOURCC, VideoWriter.fourcc('M', 'J', 'P', 'G').toDouble())
         camL.set(Videoio.CAP_PROP_FOURCC, VideoWriter.fourcc('M', 'J', 'P', 'G').toDouble())
 
@@ -43,8 +52,19 @@ class StereoCalibrationCapture(
         val grayL = Mat()
 
         try {
+            var readFailures = 0
             while (imageId < count) {
-                if (!camR.read(frameR) || !camL.read(frameL)) continue
+                val readR = camR.read(frameR)
+                val readL = camL.read(frameL)
+                if (!readR || !readL) {
+                    readFailures++
+                    println("Frame read failed (right=$readR, left=$readL) — attempt $readFailures")
+                    if (readFailures > 100) {
+                        error("Too many consecutive read failures, aborting")
+                    }
+                    continue
+                }
+                readFailures = 0
 
                 Imgproc.cvtColor(frameR, grayR, Imgproc.COLOR_BGR2GRAY)
                 Imgproc.cvtColor(frameL, grayL, Imgproc.COLOR_BGR2GRAY)
