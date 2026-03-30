@@ -36,15 +36,39 @@ class YawJointController(
 
     // Takes a 0.0-1.0 float representing position between left (0) and right (1) switches
     // After homing, motor is at right switch (steps=0), left switch is in the negative direction
+    // Uses trapezoidal speed profile: ramp up, cruise, ramp down
     suspend fun moveToPosition(fraction: Float) {
         val f = fraction.coerceIn(0f, 1f)
-        val totalSteps = rightSwitchSteps
-        // 0 = left switch (negative steps), 1 = right switch (0 steps)
-        // target = -(totalSteps) + f * totalSteps = totalSteps * (f - 1)
-        val targetSteps = totalSteps * (f - 1.0)
-        val stepsPerRevolution = 400.0 * (3 / 1)
-        val targetAngle = (targetSteps / stepsPerRevolution) * 360.0
-        motorControl.moveToAngle(targetAngle.toFloat())
+        val totalRange = rightSwitchSteps
+        val targetSteps = (totalRange * (f - 1.0)).toLong() // negative = toward left
+        val currentSteps = motorFeedback.currentRawSteps
+        val stepsToMove = abs(targetSteps - currentSteps)
+
+        if (stepsToMove < 2) return
+
+        val ctrl = motorControl as HardwarePwmMotorControl
+        val goForward = targetSteps > currentSteps
+        ctrl.startRampedMove(goForward)
+
+        val minFreq = 50
+        val maxFreq = 600
+        val rampSteps = (stepsToMove / 4).coerceIn(10, 150) // ramp over ~25% of travel
+
+        while (true) {
+            val remaining = abs(targetSteps - motorFeedback.currentRawSteps)
+            if (remaining < 2) break
+
+            val traveled = stepsToMove - remaining
+            // ramp up at start, ramp down at end, cruise in between
+            val rampUpFactor = (traveled.toDouble() / rampSteps).coerceIn(0.0, 1.0)
+            val rampDownFactor = (remaining.toDouble() / rampSteps).coerceIn(0.0, 1.0)
+            val factor = minOf(rampUpFactor, rampDownFactor)
+            ctrl.currentFreq = (minFreq + (maxFreq - minFreq) * factor).toInt().coerceIn(minFreq, maxFreq)
+
+            kotlinx.coroutines.yield()
+        }
+
+        ctrl.stop()
     }
 
     override fun update() {
@@ -74,7 +98,7 @@ class YawJointController(
         private var isEnabled: Boolean = false
         private var isMovingTillSwitch: Boolean = false
         private var lastPulseTime = System.nanoTime()
-        private var currentFreq = 0
+        var currentFreq = 0
 
         override suspend fun calibrateHome() {
             motorState = MotorState.Homing
@@ -161,6 +185,13 @@ class YawJointController(
                     (motorFeedback as TwoSwitchEncoderFeedback).onStep(isForward)
                 }
             }
+        }
+
+        fun startRampedMove(forward: Boolean) {
+            isMovingTillSwitch = true
+            direction.state(if (forward) DigitalState.HIGH else DigitalState.LOW)
+            currentFreq = 50
+            motorState = MotorState.Moving(motorFeedback)
         }
 
         override suspend fun moveToAngle(degrees: Float) {
