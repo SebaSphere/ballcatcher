@@ -37,20 +37,27 @@ suspend fun main() {
         }
 
         launch {
-            val button = pi4j.digitalInput(17) {  // Replace `17` with your button's actual GPIO pin.
-                id("button-input")
-                address(17)
-                pull(PullResistance.PULL_UP)
-                debounce(50000L) // Debounce for stability
+            fun setupButton(pin: Int, buttonId: String, onPressMessage: String) {
+                val button = pi4j.digitalInput(pin) {
+                    id(buttonId)
+                    address(pin)
+                    pull(PullResistance.PULL_UP)
+                    debounce(50000L) // Debounce for stability
+                }
+
+                button.onHigh {
+                    println("$onPressMessage at ${Time.from(Instant.now())}")
+                }
+
+                println("$buttonId monitoring coroutine started.")
             }
 
-            button.onHigh {
-                println("Button Pressed at ${Time.from(Instant.now())}")
-            }
+            setupButton(17, "button-left-input", "Button Left Pressed")
+            setupButton(27, "button-right-input", "Button Right Pressed") // Example for a right button on GPIO 18
 
-            println("Button monitoring coroutine started.")
             awaitCancellation()
         }
+
 
 
 
