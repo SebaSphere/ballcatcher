@@ -46,30 +46,12 @@ suspend fun main() {
         launch {
             repeat(100) { iteration ->
                 println("Starting CW/CCW iteration ${iteration + 1}")
-                
-                println("Moving 90 degrees Clockwise")
-                yawController.motorControl.moveClockwise(90f)
-                delay(1000)
-
-                println("Moving 45 degrees Counter-Clockwise")
-                yawController.motorControl.moveCounterClockwise(45f)
-                delay(1000)
-
-                println("Moving 45 degrees Counter-Clockwise")
-                yawController.motorControl.moveCounterClockwise(45f)
-                delay(1000)
 
                 println("Moving 180 degrees Clockwise")
                 yawController.motorControl.moveClockwise(180f)
                 delay(1000)
-
-                println("Moving 360 degrees Counter-Clockwise")
-                yawController.motorControl.moveCounterClockwise(360f)
-                delay(1000)
-
-                println("Moving back to 0")
                 yawController.motorControl.moveToAngle(0f)
-                delay(2000)
+                delay(1000)
             }
             println("Movement sequence complete.")
         }
