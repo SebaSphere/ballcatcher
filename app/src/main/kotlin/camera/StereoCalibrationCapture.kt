@@ -10,6 +10,8 @@ import org.opencv.highgui.HighGui
 import org.opencv.imgcodecs.Imgcodecs
 import org.opencv.imgproc.Imgproc
 import org.opencv.videoio.VideoCapture
+import org.opencv.videoio.VideoWriter
+import org.opencv.videoio.Videoio
 
 class StereoCalibrationCapture(
     private val rightCameraId: Int = 0,
@@ -31,6 +33,9 @@ class StereoCalibrationCapture(
 
         val camR = VideoCapture(rightCameraId)
         val camL = VideoCapture(leftCameraId)
+
+        camR.set(Videoio.CAP_PROP_FOURCC, VideoWriter.fourcc('M', 'J', 'P', 'G').toDouble())
+        camL.set(Videoio.CAP_PROP_FOURCC, VideoWriter.fourcc('M', 'J', 'P', 'G').toDouble())
 
         val frameR = Mat()
         val frameL = Mat()
