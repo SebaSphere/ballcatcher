@@ -11,6 +11,11 @@ interface IMotorFeedback {
     // degrees per second
     val angularVelocity: Double
     // hardware sensors
+    val isAtLeftSwitch: Boolean
+        get() = false
+    val isAtRightSwitch: Boolean
+        get() = false
     val isAtLimitSwitch: Boolean
+        get() = isAtLeftSwitch || isAtRightSwitch
     val isOn: Boolean
 }

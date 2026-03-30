@@ -2,7 +2,7 @@ package dev.sebastianb.ballcatcher.app.motor
 
 interface IMotorControl {
     // sets the positional data of any rotational data to 0 (for homing)
-    fun calibrateHome()
+    suspend fun calibrateHome()
     fun setEnabled(enabled: Boolean)
     fun stop()
     // the tick should control the motor state and intensity, we could look into "Hardware PWM"
@@ -18,5 +18,11 @@ interface IMotorControl {
 
     // move specified number of degrees in the counter-clockwise direction, suspends until reached
     suspend fun moveCounterClockwise(degrees: Float)
+
+    // moves the switch left until it hits the "left-button", keeps track of how far it has moved
+    suspend fun continuousMoveTillSwitchLeft()
+
+    // moves the switch right until it hits the "right-button", keeps track of how far it has moved
+    suspend fun continuousMoveTillSwitchRight()
 
 }

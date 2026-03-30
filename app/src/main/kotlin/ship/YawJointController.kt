@@ -4,9 +4,7 @@ import com.pi4j.context.Context
 import com.pi4j.io.gpio.digital.DigitalOutput
 import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.gpio.digital.PullResistance
-import com.pi4j.io.pwm.Pwm
 import com.pi4j.ktx.io.digital.digitalInput
-import com.pi4j.ktx.io.digital.onLow
 import dev.sebastianb.ballcatcher.app.motor.IMotorControl
 import dev.sebastianb.ballcatcher.app.motor.IMotorFeedback
 import dev.sebastianb.ballcatcher.app.motor.IMotorUnit
@@ -19,6 +17,8 @@ class YawJointController(
     private val pi4j: Context,
     private val pulsePin: Int = 21,
     private val directionPin: Int = 20,
+    private val leftSwitchPin: Int = 17,
+    private val rightSwitchPin: Int = 27,
     val maxAngle: Double = 360.0,
 ): IMotorUnit {
 
@@ -26,7 +26,7 @@ class YawJointController(
 
     override val motorControl: IMotorControl = HardwarePwmMotorControl()
 
-    override val motorFeedback: IMotorFeedback = MagneticEncoderFeedback()
+    override val motorFeedback: IMotorFeedback = TwoSwitchEncoderFeedback()
 
     override fun update() {
         motorControl.tick()
@@ -53,14 +53,25 @@ class YawJointController(
 
         private var targetAngle: Float = 0f
         private var isEnabled: Boolean = false
-        private var isHoming: Boolean = false
+        private var isMovingTillSwitch: Boolean = false
         private var lastPulseTime = System.nanoTime()
         private var currentFreq = 0
 
-        override fun calibrateHome() {
-            isHoming = true
+        override suspend fun calibrateHome() {
             motorState = MotorState.Homing
-            currentFreq = 200
+
+            continuousMoveTillSwitchLeft()
+            val leftSteps = motorFeedback.currentRawSteps
+            val leftAngle = motorFeedback.currentAngle
+            (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
+
+            continuousMoveTillSwitchRight()
+            val rightSteps = motorFeedback.currentRawSteps
+            val rightAngle = motorFeedback.currentAngle
+            (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
+
+            println("Homing complete — Left: $leftSteps steps ($leftAngle°), Right: $rightSteps steps ($rightAngle°)")
+            motorState = MotorState.Idle
         }
 
         override fun setEnabled(enabled: Boolean) {
@@ -77,7 +88,7 @@ class YawJointController(
         override fun stop() {
             currentFreq = 0
             pulse.low()
-            isHoming = false
+            isMovingTillSwitch = false
             if (isEnabled) motorState = MotorState.Idle
         }
 
@@ -87,14 +98,8 @@ class YawJointController(
                 return
             }
 
-            if (isHoming) {
-                if (motorFeedback.isAtLimitSwitch) {
-                    (motorFeedback as MagneticEncoderFeedback).resetSteps()
-                    stop()
-                    return
-                }
-                direction.state(DigitalState.LOW)
-                currentFreq = 200
+            if (isMovingTillSwitch) {
+                // direction and freq are set by continuousMoveTillSwitch*, just keep pulsing
             } else {
                 val currentAngle = motorFeedback.currentAngle
                 val error = targetAngle - currentAngle
@@ -134,7 +139,7 @@ class YawJointController(
                     
                     // Update feedback
                     val isForward = direction.state() == DigitalState.HIGH
-                    (motorFeedback as MagneticEncoderFeedback).onStep(isForward)
+                    (motorFeedback as TwoSwitchEncoderFeedback).onStep(isForward)
                 }
             }
         }
@@ -155,14 +160,57 @@ class YawJointController(
             moveToAngle(motorFeedback.currentAngle.toFloat() - degrees)
         }
 
+        override suspend fun continuousMoveTillSwitchLeft() {
+            isMovingTillSwitch = true
+            direction.state(DigitalState.HIGH) // CW = toward left switch
+            currentFreq = 200
+            motorState = MotorState.Moving(motorFeedback)
+            while (!(motorFeedback as TwoSwitchEncoderFeedback).isAtLeftSwitch) {
+                kotlinx.coroutines.yield()
+            }
+            stop()
+        }
+
+        override suspend fun continuousMoveTillSwitchRight() {
+            isMovingTillSwitch = true
+            direction.state(DigitalState.LOW) // CCW = toward right switch
+            currentFreq = 200
+            motorState = MotorState.Moving(motorFeedback)
+            while (!(motorFeedback as TwoSwitchEncoderFeedback).isAtRightSwitch) {
+                kotlinx.coroutines.yield()
+            }
+            stop()
+        }
+
+
     }
 
-    inner class MagneticEncoderFeedback(
+    inner class TwoSwitchEncoderFeedback(
         override val maxAngle: Double = this.maxAngle
     ) : IMotorFeedback {
         private var _isOn: Boolean = true
         override val isOn: Boolean
             get() = _isOn
+
+        private val leftSwitch = pi4j.digitalInput(leftSwitchPin) {
+            id("yaw-left-switch")
+            address(leftSwitchPin)
+            pull(PullResistance.PULL_UP)
+            debounce(50000L)
+        }
+
+        private val rightSwitch = pi4j.digitalInput(rightSwitchPin) {
+            id("yaw-right-switch")
+            address(rightSwitchPin)
+            pull(PullResistance.PULL_UP)
+            debounce(50000L)
+        }
+
+        override val isAtLeftSwitch: Boolean
+            get() = leftSwitch.state() == DigitalState.LOW
+
+        override val isAtRightSwitch: Boolean
+            get() = rightSwitch.state() == DigitalState.LOW
 
         private var currentSteps: Long = 0
 
@@ -198,8 +246,6 @@ class YawJointController(
         override val currentAngle: Double
             get() = (currentSteps.toDouble() / stepsPerRevolution) * 360.0
 
-        override val isAtLimitSwitch: Boolean
-            get() = true
     }
 
 }

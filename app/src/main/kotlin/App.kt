@@ -1,19 +1,9 @@
 package dev.sebastianb.ballcatcher.app
 
 import com.pi4j.Pi4J
-import com.pi4j.context.Context
-import com.pi4j.io.gpio.digital.DigitalOutput
-import com.pi4j.io.gpio.digital.DigitalState
-import com.pi4j.io.gpio.digital.PullResistance
-import com.pi4j.ktx.io.digital.digitalInput
-import com.pi4j.ktx.io.digital.onHigh
-import com.pi4j.ktx.io.digital.onLow
 import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalInputProvider
 import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalOutputProvider
-import dev.sebastianb.ballcatcher.app.motor.MotorState
 import dev.sebastianb.ballcatcher.app.ship.YawJointController
-import java.sql.Time
-import java.time.Instant
 import kotlinx.coroutines.*
 
 suspend fun main() {
@@ -27,7 +17,6 @@ suspend fun main() {
     coroutineScope {
         val yawController = YawJointController(pi4j)
         yawController.motorControl.setEnabled(true)
-        yawController.motorControl.calibrateHome()
 
         launch {
             while (isActive) {
@@ -37,26 +26,9 @@ suspend fun main() {
         }
 
         launch {
-            fun setupButton(pin: Int, buttonId: String, onPressMessage: String) {
-                val button = pi4j.digitalInput(pin) {
-                    id(buttonId)
-                    address(pin)
-                    pull(PullResistance.PULL_UP)
-                    debounce(50000L) // Debounce for stability
-                }
-
-                button.onHigh {
-                    println("$onPressMessage at ${Time.from(Instant.now())}")
-                }
-
-                println("$buttonId monitoring coroutine started.")
-            }
-
-            setupButton(17, "button-left-input", "Button Left Pressed")
-            setupButton(27, "button-right-input", "Button Right Pressed") // Example for a right button on GPIO 18
-
-            awaitCancellation()
+            yawController.motorControl.calibrateHome()
         }
+
 
 
 
@@ -68,18 +40,18 @@ suspend fun main() {
             }
         }
 
-        launch {
-            repeat(100) { iteration ->
-                println("Starting CW/CCW iteration ${iteration + 1}")
-
-                println("Moving 180 degrees Clockwise")
-                yawController.motorControl.moveClockwise(180f)
-                delay(1000)
-                yawController.motorControl.moveToAngle(0f)
-                delay(1000)
-            }
-            println("Movement sequence complete.")
-        }
+//        launch {
+//            repeat(100) { iteration ->
+//                println("Starting CW/CCW iteration ${iteration + 1}")
+//
+//                println("Moving 180 degrees Clockwise")
+//                yawController.motorControl.moveClockwise(180f)
+//                delay(1000)
+//                yawController.motorControl.moveToAngle(0f)
+//                delay(1000)
+//            }
+//            println("Movement sequence complete.")
+//        }
     }
 
     awaitCancellation()
