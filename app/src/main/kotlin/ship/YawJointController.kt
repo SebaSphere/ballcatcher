@@ -207,10 +207,10 @@ class YawJointController(
         }
 
         override val isAtLeftSwitch: Boolean
-            get() = leftSwitch.state() == DigitalState.LOW
+            get() = leftSwitch.state() == DigitalState.HIGH
 
         override val isAtRightSwitch: Boolean
-            get() = rightSwitch.state() == DigitalState.LOW
+            get() = rightSwitch.state() == DigitalState.HIGH
 
         private var currentSteps: Long = 0
 
