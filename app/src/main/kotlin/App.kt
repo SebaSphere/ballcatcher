@@ -31,26 +31,26 @@ suspend fun main() {
             }
         }
 
-        launch {
-            yawController.motorControl.calibrateHome()
-            delay(5000)
-            println("Moving to 0.5 (midpoint)...")
-            yawController.moveToPosition(0.5f)
-            println("Arrived at midpoint.")
-            delay(1000)
-            yawController.moveToPosition(0.0f)
-            println("Arrived at 0.0.")
-            delay(1000)
-            yawController.moveToPosition(0.75f)
-            println("Arrived at 0.75.")
-            delay(1000)
-            yawController.moveToPosition(0.25f)
-            println("Arrived at 0.25.")
-            delay(1000)
-            yawController.moveToPosition(1f)
-            println("Arrived at 1.")
-
-        }
+//        launch {
+//            yawController.motorControl.calibrateHome()
+//            delay(5000)
+//            println("Moving to 0.5 (midpoint)...")
+//            yawController.moveToPosition(0.5f)
+//            println("Arrived at midpoint.")
+//            delay(1000)
+//            yawController.moveToPosition(0.0f)
+//            println("Arrived at 0.0.")
+//            delay(1000)
+//            yawController.moveToPosition(0.75f)
+//            println("Arrived at 0.75.")
+//            delay(1000)
+//            yawController.moveToPosition(0.25f)
+//            println("Arrived at 0.25.")
+//            delay(1000)
+//            yawController.moveToPosition(1f)
+//            println("Arrived at 1.")
+//
+//        }
 
 
 
