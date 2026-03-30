@@ -186,6 +186,31 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommandResponse"
 
+  /api/camera/calibration-capture:
+    post:
+      tags: [Camera]
+      summary: Capture stereo calibration images
+      description: Captures chessboard calibration image pairs from both cameras. Automatically saves when both chessboards are detected.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [count]
+              properties:
+                count:
+                  type: integer
+                  description: Number of image pairs to capture
+                  example: 30
+      responses:
+        "200":
+          description: Capture complete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
   /api/motor/enable:
     post:
       tags: [Motor]
