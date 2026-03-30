@@ -69,6 +69,7 @@ class YawJointController(
         }
 
         ctrl.stop()
+        ctrl.targetAngle = motorFeedback.currentAngle.toFloat()
     }
 
     override fun update() {
@@ -94,7 +95,7 @@ class YawJointController(
                 .build()
         )
 
-        private var targetAngle: Float = 0f
+        var targetAngle: Float = 0f
         private var isEnabled: Boolean = false
         private var isMovingTillSwitch: Boolean = false
         private var lastPulseTime = System.nanoTime()
