@@ -17,9 +17,8 @@ import kotlin.math.abs
 // moveToAngle isn't that good either, we should handle states so we know if a action is currently running
 class YawJointController(
     private val pi4j: Context,
-    private val pulsePin: Int = 20,
-    private val directionPin: Int = 21,
-    private val magnetPin: Int = 24,
+    private val pulsePin: Int = 21,
+    private val directionPin: Int = 20,
     val maxAngle: Double = 360.0,
 ): IMotorUnit {
 
