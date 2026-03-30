@@ -5,6 +5,8 @@ plugins {
 
     // Apply the Application plugin to add support for building an executable JVM application.
     application
+
+    alias(libs.plugins.kotlinPluginSerialization)
 }
 
 dependencies {
@@ -20,6 +22,9 @@ dependencies {
     implementation(libs.pi4j.library.gpiod)
 
     implementation(libs.kotlinxCoroutines)
+    implementation(libs.kotlinxSerialization)
+
+    implementation(libs.bundles.ktor)
 }
 
 tasks.withType<Jar> {

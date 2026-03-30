@@ -1,0 +1,278 @@
+openapi: 3.0.3
+info:
+  title: Ball Catcher API
+  description: REST API for controlling the ball catcher robot's motors and reading sensor data.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080
+    description: Local Pi server
+
+paths:
+  /api/status:
+    get:
+      tags: [System]
+      summary: Get full system status
+      description: Returns combined motor state, feedback, and switch step counts.
+      responses:
+        "200":
+          description: Current system status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SystemStatus"
+
+  /api/motor/feedback:
+    get:
+      tags: [Motor]
+      summary: Get motor feedback
+      description: Returns current motor sensor readings (angle, steps, velocity, switches).
+      responses:
+        "200":
+          description: Current motor feedback
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MotorFeedback"
+
+  /api/motor/state:
+    get:
+      tags: [Motor]
+      summary: Get motor state
+      description: Returns the current motor state machine value.
+      responses:
+        "200":
+          description: Current motor state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MotorState"
+
+  /api/ship/position:
+    get:
+      tags: [Ship]
+      summary: Get head position
+      description: Returns the current yaw and pitch of the robot head.
+      responses:
+        "200":
+          description: Current head position
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HeadPosition"
+
+  /api/motor/move-to-angle:
+    post:
+      tags: [Motor]
+      summary: Move to absolute angle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [degrees]
+              properties:
+                degrees:
+                  type: number
+                  format: float
+                  example: 180.0
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/motor/move-to-position:
+    post:
+      tags: [Motor]
+      summary: Move to fractional position
+      description: Moves to a position between left switch (0.0) and right switch (1.0).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fraction]
+              properties:
+                fraction:
+                  type: number
+                  format: float
+                  minimum: 0.0
+                  maximum: 1.0
+                  example: 0.5
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/motor/move-clockwise:
+    post:
+      tags: [Motor]
+      summary: Move clockwise by degrees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [degrees]
+              properties:
+                degrees:
+                  type: number
+                  format: float
+                  example: 90.0
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/motor/move-counter-clockwise:
+    post:
+      tags: [Motor]
+      summary: Move counter-clockwise by degrees
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [degrees]
+              properties:
+                degrees:
+                  type: number
+                  format: float
+                  example: 90.0
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/motor/calibrate-home:
+    post:
+      tags: [Motor]
+      summary: Calibrate home position
+      description: Triggers the homing sequence (moves to both limit switches to determine range).
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/motor/stop:
+    post:
+      tags: [Motor]
+      summary: Emergency stop
+      description: Immediately stops the motor.
+      responses:
+        "200":
+          description: Motor stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/motor/enable:
+    post:
+      tags: [Motor]
+      summary: Enable or disable motor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [enabled]
+              properties:
+                enabled:
+                  type: boolean
+                  example: true
+      responses:
+        "200":
+          description: Command accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+components:
+  schemas:
+    MotorFeedback:
+      type: object
+      properties:
+        minAngle:
+          type: number
+          format: double
+        maxAngle:
+          type: number
+          format: double
+        currentAngle:
+          type: number
+          format: double
+        currentRawSteps:
+          type: integer
+          format: int64
+        angularVelocity:
+          type: number
+          format: double
+        isAtLeftSwitch:
+          type: boolean
+        isAtRightSwitch:
+          type: boolean
+        isAtLimitSwitch:
+          type: boolean
+        isOn:
+          type: boolean
+
+    MotorState:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [uninitialized, idle, homing, moving]
+
+    HeadPosition:
+      type: object
+      properties:
+        yaw:
+          type: number
+          format: float
+        pitch:
+          type: number
+          format: float
+
+    SystemStatus:
+      type: object
+      properties:
+        motorState:
+          $ref: "#/components/schemas/MotorState"
+        motorFeedback:
+          $ref: "#/components/schemas/MotorFeedback"
+        leftSwitchSteps:
+          type: integer
+          format: int64
+        rightSwitchSteps:
+          type: integer
+          format: int64
+
+    CommandResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string

@@ -3,6 +3,7 @@ package dev.sebastianb.ballcatcher.app
 import com.pi4j.Pi4J
 import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalInputProvider
 import com.pi4j.plugin.gpiod.provider.gpio.digital.GpioDDigitalOutputProvider
+import dev.sebastianb.ballcatcher.app.api.startServer
 import dev.sebastianb.ballcatcher.app.ship.YawJointController
 import kotlinx.coroutines.*
 
@@ -17,6 +18,11 @@ suspend fun main() {
     coroutineScope {
         val yawController = YawJointController(pi4j)
         yawController.motorControl.setEnabled(true)
+
+        // Start Ktor API server
+        val server = startServer(yawController)
+        server.start(wait = false)
+        println("API server started on http://0.0.0.0:8080")
 
         launch {
             while (isActive) {

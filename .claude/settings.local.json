@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /c/Users/Sebastian B/IdeaProjects/ballcatcherwork -type d ! -path */.gradle* ! -path */.idea* ! -path */.git*)",
+      "Bash(./gradlew :app:compileKotlin --dry-run)",
+      "Bash(./gradlew :app:compileKotlin)"
+    ]
+  }
+}
