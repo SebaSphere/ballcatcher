@@ -28,6 +28,25 @@ class YawJointController(
 
     override val motorFeedback: IMotorFeedback = TwoSwitchEncoderFeedback()
 
+    // Absolute step counts from homing (left is distance going left, right is distance going right)
+    var leftSwitchSteps: Long = 0
+        private set
+    var rightSwitchSteps: Long = 0
+        private set
+
+    // Takes a 0.0-1.0 float representing position between left (0) and right (1) switches
+    // After homing, motor is at right switch (steps=0), left switch is in the negative direction
+    suspend fun moveToPosition(fraction: Float) {
+        val f = fraction.coerceIn(0f, 1f)
+        val totalSteps = rightSwitchSteps
+        // 0 = left switch (negative steps), 1 = right switch (0 steps)
+        // target = -(totalSteps) + f * totalSteps = totalSteps * (f - 1)
+        val targetSteps = totalSteps * (f - 1.0)
+        val stepsPerRevolution = 400.0 * (3 / 1)
+        val targetAngle = (targetSteps / stepsPerRevolution) * 360.0
+        motorControl.moveToAngle(targetAngle.toFloat())
+    }
+
     override fun update() {
         motorControl.tick()
     }
@@ -61,16 +80,16 @@ class YawJointController(
             motorState = MotorState.Homing
 
             continuousMoveTillSwitchLeft()
-            val leftSteps = motorFeedback.currentRawSteps
+            leftSwitchSteps = abs(motorFeedback.currentRawSteps)
             val leftAngle = motorFeedback.currentAngle
             (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
 
             continuousMoveTillSwitchRight()
-            val rightSteps = motorFeedback.currentRawSteps
+            rightSwitchSteps = abs(motorFeedback.currentRawSteps)
             val rightAngle = motorFeedback.currentAngle
             (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
 
-            println("Homing complete — Left: $leftSteps steps ($leftAngle°), Right: $rightSteps steps ($rightAngle°)")
+            println("Homing complete — Left: $leftSwitchSteps steps ($leftAngle°), Right: $rightSwitchSteps steps ($rightAngle°)")
             motorState = MotorState.Idle
         }
 

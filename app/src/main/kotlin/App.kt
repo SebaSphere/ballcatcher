@@ -27,6 +27,10 @@ suspend fun main() {
 
         launch {
             yawController.motorControl.calibrateHome()
+            delay(5000)
+            println("Moving to 0.5 (midpoint)...")
+            yawController.moveToPosition(0.5f)
+            println("Arrived at midpoint.")
         }
 
 
