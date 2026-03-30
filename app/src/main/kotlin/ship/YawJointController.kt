@@ -115,6 +115,7 @@ class YawJointController(
             (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
 
             println("Homing complete — Left: $leftSwitchSteps steps ($leftAngle°), Right: $rightSwitchSteps steps ($rightAngle°)")
+            targetAngle = motorFeedback.currentAngle.toFloat()
             motorState = MotorState.Idle
         }
 
