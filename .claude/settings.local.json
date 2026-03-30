@@ -3,7 +3,11 @@
     "allow": [
       "Bash(find /c/Users/Sebastian B/IdeaProjects/ballcatcherwork -type d ! -path */.gradle* ! -path */.idea* ! -path */.git*)",
       "Bash(./gradlew :app:compileKotlin --dry-run)",
-      "Bash(./gradlew :app:compileKotlin)"
+      "Bash(./gradlew :app:compileKotlin)",
+      "Bash(xargs ls:*)",
+      "Bash(find '/c/Users/Sebastian B/IdeaProjects/ballcatcherwork' -type d -not -path */.* -not -path */.gradle* -not -path */build*)",
+      "Bash(xargs wc:*)",
+      "WebFetch(domain:raw.githubusercontent.com)"
     ]
   }
 }

@@ -37,6 +37,7 @@ fun startServer(controller: YawJointController, port: Int = 8080) = embeddedServ
             motorRoutes(controller)
             shipRoutes(controller)
             statusRoutes(controller)
+            cameraRoutes()
         }
     }
 }

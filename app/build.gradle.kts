@@ -25,6 +25,8 @@ dependencies {
     implementation(libs.kotlinxSerialization)
 
     implementation(libs.bundles.ktor)
+
+    implementation(libs.opencv)
 }
 
 tasks.withType<Jar> {
