@@ -40,6 +40,9 @@ suspend fun main() {
             delay(1000)
             yawController.moveToPosition(0.25f)
             println("Arrived at 0.25.")
+            delay(1000)
+            yawController.moveToPosition(1f)
+            println("Arrived at 1.")
 
         }
 
