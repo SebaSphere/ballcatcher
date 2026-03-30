@@ -24,7 +24,10 @@ fun startServer(controller: YawJointController, port: Int = 8080) = embeddedServ
         anyHost()
         allowMethod(HttpMethod.Get)
         allowMethod(HttpMethod.Post)
+        allowMethod(HttpMethod.Options)
         allowHeader(HttpHeaders.ContentType)
+        allowHeader(HttpHeaders.Accept)
+        allowHeader(HttpHeaders.Authorization)
     }
 
     routing {
