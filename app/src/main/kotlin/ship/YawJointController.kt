@@ -161,7 +161,7 @@ class YawJointController(
     inner class MagneticEncoderFeedback(
         override val maxAngle: Double = this.maxAngle
     ) : IMotorFeedback {
-        private var _isOn: Boolean = false
+        private var _isOn: Boolean = true
         override val isOn: Boolean
             get() = _isOn
 
