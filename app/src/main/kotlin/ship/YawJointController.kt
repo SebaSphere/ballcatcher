@@ -166,7 +166,9 @@ class YawJointController(
             get() = _isOn
 
         private var currentSteps: Long = 0
-        private val stepsPerRevolution: Double = 400.0 // Assuming 400 steps per revolution
+
+        private val gearRatio = (3/1)
+        private val stepsPerRevolution: Double = 400.0 * gearRatio // Assuming 400 steps per revolution
 
         private val magnetSensor = pi4j.digitalInput(magnetPin) {
             id("magnet-sensor")
