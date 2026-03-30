@@ -162,7 +162,7 @@ class YawJointController(
 
         override suspend fun continuousMoveTillSwitchLeft() {
             isMovingTillSwitch = true
-            direction.state(DigitalState.HIGH) // CW = toward left switch
+            direction.state(DigitalState.LOW) // CCW = toward left switch
             currentFreq = 200
             motorState = MotorState.Moving(motorFeedback)
             while (!(motorFeedback as TwoSwitchEncoderFeedback).isAtLeftSwitch) {
@@ -173,7 +173,7 @@ class YawJointController(
 
         override suspend fun continuousMoveTillSwitchRight() {
             isMovingTillSwitch = true
-            direction.state(DigitalState.LOW) // CCW = toward right switch
+            direction.state(DigitalState.HIGH) // CC = toward right switch
             currentFreq = 200
             motorState = MotorState.Moving(motorFeedback)
             while (!(motorFeedback as TwoSwitchEncoderFeedback).isAtRightSwitch) {
