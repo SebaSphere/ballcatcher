@@ -161,7 +161,7 @@ class YawJointController(
     inner class MagneticEncoderFeedback(
         override val maxAngle: Double = this.maxAngle
     ) : IMotorFeedback {
-        private var _isOn: Boolean = false
+        private var _isOn: Boolean = true
         override val isOn: Boolean
             get() = _isOn
 
@@ -170,17 +170,17 @@ class YawJointController(
         private val gearRatio = (3/1)
         private val stepsPerRevolution: Double = 400.0 * gearRatio // Assuming 400 steps per revolution
 
-        private val magnetSensor = pi4j.digitalInput(magnetPin) {
-            id("magnet-sensor")
-            address(magnetPin)
-            pull(PullResistance.PULL_DOWN)
-            debounce(5000L)
-        }.apply {
-            onLow {
-                _isOn = !_isOn
-                println("Magnet sensor toggled! Now: $_isOn")
-            }
-        }
+//        private val magnetSensor = pi4j.digitalInput(magnetPin) {
+//            id("magnet-sensor")
+//            address(magnetPin)
+//            pull(PullResistance.PULL_UP)
+//            debounce(5000L)
+//        }.apply {
+//            onLow {
+//                _isOn = !_isOn
+//                println("Magnet sensor toggled! Now: $_isOn")
+//            }
+//        }
 
         fun onStep(isForward: Boolean) {
             if (isForward) currentSteps++ else currentSteps--
@@ -200,7 +200,7 @@ class YawJointController(
             get() = (currentSteps.toDouble() / stepsPerRevolution) * 360.0
 
         override val isAtLimitSwitch: Boolean
-            get() = magnetSensor.isLow
+            get() = true
     }
 
 }
