@@ -161,7 +161,7 @@ class YawJointController(
     inner class MagneticEncoderFeedback(
         override val maxAngle: Double = this.maxAngle
     ) : IMotorFeedback {
-        private var _isOn: Boolean = true
+        private var _isOn: Boolean = false
         override val isOn: Boolean
             get() = _isOn
 
@@ -173,7 +173,7 @@ class YawJointController(
         private val magnetSensor = pi4j.digitalInput(magnetPin) {
             id("magnet-sensor")
             address(magnetPin)
-            pull(PullResistance.PULL_UP)
+            pull(PullResistance.PULL_DOWN)
             debounce(5000L)
         }.apply {
             onLow {
