@@ -22,5 +22,6 @@ plugins {
 include(":app")
 include(":utils")
 include(":cam")
+include(":opencv")
 
 rootProject.name = "ballcatcher"

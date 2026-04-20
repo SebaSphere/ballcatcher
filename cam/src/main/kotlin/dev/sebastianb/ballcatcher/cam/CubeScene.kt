@@ -19,6 +19,7 @@ import com.badlogic.gdx.utils.ScreenUtils
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+import kotlin.random.Random
 
 class CubeScene : ApplicationAdapter() {
 
@@ -26,8 +27,8 @@ class CubeScene : ApplicationAdapter() {
     private lateinit var leftCamera: PerspectiveCamera
     private lateinit var rightCamera: PerspectiveCamera
     private lateinit var modelBatch: ModelBatch
-    private lateinit var cubeModel: Model
-    private lateinit var cubeInstance: ModelInstance
+    private lateinit var sphereModel: Model
+    private lateinit var sphereInstance: ModelInstance
     private lateinit var environment: Environment
     private lateinit var camController: FreeCamController
     private lateinit var spriteBatch: SpriteBatch
@@ -40,7 +41,7 @@ class CubeScene : ApplicationAdapter() {
         val height = Gdx.graphics.height.toFloat()
 
         mainCamera = PerspectiveCamera(67f, halfWidth, height).apply {
-            position.set(5f, 5f, 5f)
+            position.set(5f, 0f, 5f)
             lookAt(0f, 0f, 0f)
             near = 0.1f
             far = 300f
@@ -65,12 +66,18 @@ class CubeScene : ApplicationAdapter() {
         modelBatch = ModelBatch()
 
         val modelBuilder = ModelBuilder()
-        cubeModel = modelBuilder.createBox(
-            2f, 2f, 2f,
-            Material(ColorAttribute.createDiffuse(Color.CYAN)),
+        sphereModel = modelBuilder.createSphere(
+            2f, 2f, 2f, 20, 20,
+            Material(ColorAttribute.createDiffuse(Color.GREEN)),
             (Usage.Position or Usage.Normal).toLong()
         )
-        cubeInstance = ModelInstance(cubeModel)
+        sphereInstance = ModelInstance(sphereModel).apply {
+            transform.setTranslation(
+                Random.nextFloat() * 20f - 10f,
+                0f,
+                Random.nextFloat() * 20f - 10f
+            )
+        }
 
         camController = FreeCamController(mainCamera)
         Gdx.input.inputProcessor = camController
@@ -124,13 +131,13 @@ class CubeScene : ApplicationAdapter() {
         // Render left eye (left half of screen)
         Gdx.gl.glViewport(0, 0, halfW, h)
         modelBatch.begin(leftCamera)
-        modelBatch.render(cubeInstance, environment)
+        modelBatch.render(sphereInstance, environment)
         modelBatch.end()
 
         // Render right eye (right half of screen)
         Gdx.gl.glViewport(halfW, 0, w - halfW, h)
         modelBatch.begin(rightCamera)
-        modelBatch.render(cubeInstance, environment)
+        modelBatch.render(sphereInstance, environment)
         modelBatch.end()
 
         // HUD overlay — reset viewport to full screen for 2D text
@@ -194,6 +201,23 @@ class CubeScene : ApplicationAdapter() {
         flippedLeft.dispose()
         flippedRight.dispose()
 
+        val lp = leftCamera.position
+        val rp = rightCamera.position
+        val dir3 = mainCamera.direction
+        val up3 = mainCamera.up
+        File(dir, "cameras.txt").writeText(
+            "left_cam %.4f %.4f %.4f\nright_cam %.4f %.4f %.4f\ndirection %.4f %.4f %.4f\nup %.4f %.4f %.4f\n".format(
+                lp.x, lp.y, lp.z, rp.x, rp.y, rp.z,
+                dir3.x, dir3.y, dir3.z, up3.x, up3.y, up3.z
+            )
+        )
+
+        val sp = Vector3()
+        sphereInstance.transform.getTranslation(sp)
+        File(dir, "sphere.txt").writeText(
+            "sphere %.4f %.4f %.4f\n".format(sp.x, sp.y, sp.z)
+        )
+
         println("Screenshots saved to screenshots/$timestamp/")
     }
 
@@ -209,7 +233,7 @@ class CubeScene : ApplicationAdapter() {
 
     override fun dispose() {
         modelBatch.dispose()
-        cubeModel.dispose()
+        sphereModel.dispose()
         spriteBatch.dispose()
         font.dispose()
     }
