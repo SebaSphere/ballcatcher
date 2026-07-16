@@ -22,7 +22,7 @@ suspend fun main() {
         // Start Ktor API server
         val server = startServer(yawController)
         server.start(wait = false)
-        println("API server started on http://0.0.0.0:8080")
+        println("API server started on http://0.0.0.0:8080/swagger")
 
         launch {
             while (isActive) {
