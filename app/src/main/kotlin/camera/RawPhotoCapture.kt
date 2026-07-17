@@ -61,8 +61,8 @@ class RawPhotoCapture(
                 break
             }
 
-            val rightPath = "${outputDir.path}/right.png"
-            val leftPath = "${outputDir.path}/left.png"
+            val rightPath = File("${outputDir.path}/right.png").absolutePath
+            val leftPath = File("${outputDir.path}/left.png").absolutePath
 
             Imgcodecs.imwrite(rightPath, frameR)
             Imgcodecs.imwrite(leftPath, frameL)
