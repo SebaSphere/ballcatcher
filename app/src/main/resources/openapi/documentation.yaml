@@ -217,6 +217,19 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommandResponse"
 
+  /api/camera/raw-capture:
+    post:
+      tags: [Camera]
+      summary: Capture a raw stereo photo pair
+      description: Takes one photo from each camera (right and left) and saves them to `raw_photo_logs/<timestamp>/right.png` and `left.png`.
+      responses:
+        "200":
+          description: Photos captured and saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RawCaptureResponse"
+
   /api/motor/enable:
     post:
       tags: [Motor]
@@ -299,6 +312,22 @@ components:
         rightSwitchSteps:
           type: integer
           format: int64
+
+    RawCaptureResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          description: Folder name / timestamp of the capture (yyyy-MM-dd_HH-mm-ss-SSS)
+          example: "2026-07-16_14-32-05-123"
+        rightPath:
+          type: string
+          description: File path of the right camera image
+          example: "raw_photo_logs/2026-07-16_14-32-05-123/right.png"
+        leftPath:
+          type: string
+          description: File path of the left camera image
+          example: "raw_photo_logs/2026-07-16_14-32-05-123/left.png"
 
     CommandResponse:
       type: object
