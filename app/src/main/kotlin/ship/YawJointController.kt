@@ -250,9 +250,9 @@ class YawJointController(
             pull(PullResistance.PULL_UP)
             debounce(50000L)
         }.apply {
-            addListener { event ->
+            addListener({ event ->
                 if (event.state() == DigitalState.HIGH) println("[SWITCH] Left switch pressed")
-            }
+            })
         }
 
         private val rightSwitch = pi4j.digitalInput(rightSwitchPin) {
@@ -261,9 +261,9 @@ class YawJointController(
             pull(PullResistance.PULL_UP)
             debounce(50000L)
         }.apply {
-            addListener { event ->
+            addListener({ event ->
                 if (event.state() == DigitalState.HIGH) println("[SWITCH] Right switch pressed")
-            }
+            })
         }
 
         override val isAtLeftSwitch: Boolean
