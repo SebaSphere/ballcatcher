@@ -3,16 +3,16 @@ package dev.sebastianb.ballcatcher.app.api.dto
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class MoveToAngleRequest(val degrees: Float)
+data class MoveToAngleRequest(val degrees: Float, val speed: Int? = null)
 
 @Serializable
-data class MoveToPositionRequest(val fraction: Float)
+data class MoveToPositionRequest(val fraction: Float, val speed: Int? = null)
 
 @Serializable
-data class MoveClockwiseRequest(val degrees: Float)
+data class MoveClockwiseRequest(val degrees: Float, val speed: Int? = null)
 
 @Serializable
-data class MoveCounterClockwiseRequest(val degrees: Float)
+data class MoveCounterClockwiseRequest(val degrees: Float, val speed: Int? = null)
 
 @Serializable
 data class SetEnabledRequest(val enabled: Boolean)

@@ -38,7 +38,7 @@ class YawJointController(
     // Takes a 0.0-1.0 float representing position between left (0) and right (1) switches
     // After homing, motor is at right switch (steps=0), left switch is in the negative direction
     // Uses trapezoidal speed profile: ramp up, cruise, ramp down
-    suspend fun moveToPosition(fraction: Float) {
+    suspend fun moveToPosition(fraction: Float, speed: Int = 600) {
         val f = fraction.coerceIn(0f, 1f)
         val totalRange = rightSwitchSteps
         val targetSteps = (totalRange * (f - 1.0)).toLong() // negative = toward left
@@ -52,7 +52,7 @@ class YawJointController(
         ctrl.startRampedMove(goForward)
 
         val minFreq = 50
-        val maxFreq = 600
+        val maxFreq = speed.coerceIn(50, 1000)
         val rampSteps = (stepsToMove / 4).coerceIn(10, 150) // ramp over ~25% of travel
 
         while (true) {
@@ -101,6 +101,7 @@ class YawJointController(
         private var isMovingTillSwitch: Boolean = false
         private var lastPulseTime = System.nanoTime()
         var currentFreq = 0
+        var moveMaxFreq = 1000
 
         override suspend fun calibrateHome() {
             motorState = MotorState.Homing
@@ -166,10 +167,9 @@ class YawJointController(
                 val dirState = if (error > 0) DigitalState.HIGH else DigitalState.LOW
                 direction.state(dirState)
 
-                val maxFreq = 1000
                 val minFreq = 50
                 val gain = 500
-                currentFreq = (abs(error) * gain).toInt().coerceIn(minFreq, maxFreq)
+                currentFreq = (abs(error) * gain).toInt().coerceIn(minFreq, moveMaxFreq)
             }
 
             if (currentFreq > 0) {
@@ -197,7 +197,8 @@ class YawJointController(
             motorState = MotorState.Moving(motorFeedback)
         }
 
-        override suspend fun moveToAngle(degrees: Float) {
+        override suspend fun moveToAngle(degrees: Float, speed: Int) {
+            moveMaxFreq = speed.coerceIn(50, 1000)
             targetAngle = degrees
             // Suspend until we are in Idle state and near the target
             while (motorState !is MotorState.Idle || abs(targetAngle - motorFeedback.currentAngle) >= 0.5) {
@@ -205,12 +206,12 @@ class YawJointController(
             }
         }
 
-        override suspend fun moveClockwise(degrees: Float) {
-            moveToAngle(motorFeedback.currentAngle.toFloat() + degrees)
+        override suspend fun moveClockwise(degrees: Float, speed: Int) {
+            moveToAngle(motorFeedback.currentAngle.toFloat() + degrees, speed)
         }
 
-        override suspend fun moveCounterClockwise(degrees: Float) {
-            moveToAngle(motorFeedback.currentAngle.toFloat() - degrees)
+        override suspend fun moveCounterClockwise(degrees: Float, speed: Int) {
+            moveToAngle(motorFeedback.currentAngle.toFloat() - degrees, speed)
         }
 
         override suspend fun continuousMoveTillSwitchLeft() {

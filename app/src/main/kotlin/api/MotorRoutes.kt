@@ -26,25 +26,25 @@ fun Route.motorRoutes(controller: YawJointController) {
 
         post("/move-to-angle") {
             val request = call.receive<MoveToAngleRequest>()
-            motorScope.launch { controller.motorControl.moveToAngle(request.degrees) }
+            motorScope.launch { controller.motorControl.moveToAngle(request.degrees, request.speed ?: 1000) }
             call.respond(CommandResponse(true, "Moving to angle ${request.degrees}°"))
         }
 
         post("/move-to-position") {
             val request = call.receive<MoveToPositionRequest>()
-            motorScope.launch { controller.moveToPosition(request.fraction) }
+            motorScope.launch { controller.moveToPosition(request.fraction, request.speed ?: 600) }
             call.respond(CommandResponse(true, "Moving to position ${request.fraction}"))
         }
 
         post("/move-clockwise") {
             val request = call.receive<MoveClockwiseRequest>()
-            motorScope.launch { controller.motorControl.moveClockwise(request.degrees) }
+            motorScope.launch { controller.motorControl.moveClockwise(request.degrees, request.speed ?: 1000) }
             call.respond(CommandResponse(true, "Moving ${request.degrees}° clockwise"))
         }
 
         post("/move-counter-clockwise") {
             val request = call.receive<MoveCounterClockwiseRequest>()
-            motorScope.launch { controller.motorControl.moveCounterClockwise(request.degrees) }
+            motorScope.launch { controller.motorControl.moveCounterClockwise(request.degrees, request.speed ?: 1000) }
             call.respond(CommandResponse(true, "Moving ${request.degrees}° counter-clockwise"))
         }
 

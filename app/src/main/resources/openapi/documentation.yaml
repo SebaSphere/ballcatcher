@@ -77,6 +77,12 @@ paths:
                   type: number
                   format: float
                   example: 180.0
+                speed:
+                  type: integer
+                  description: Max motor speed in steps/sec (50–1000). Defaults to 1000.
+                  minimum: 50
+                  maximum: 1000
+                  example: 500
       responses:
         "200":
           description: Command accepted
@@ -104,6 +110,12 @@ paths:
                   minimum: 0.0
                   maximum: 1.0
                   example: 0.5
+                speed:
+                  type: integer
+                  description: Max motor speed in steps/sec (50–1000). Defaults to 600.
+                  minimum: 50
+                  maximum: 1000
+                  example: 400
       responses:
         "200":
           description: Command accepted
@@ -128,6 +140,12 @@ paths:
                   type: number
                   format: float
                   example: 90.0
+                speed:
+                  type: integer
+                  description: Max motor speed in steps/sec (50–1000). Defaults to 1000.
+                  minimum: 50
+                  maximum: 1000
+                  example: 500
       responses:
         "200":
           description: Command accepted
@@ -152,6 +170,12 @@ paths:
                   type: number
                   format: float
                   example: 90.0
+                speed:
+                  type: integer
+                  description: Max motor speed in steps/sec (50–1000). Defaults to 1000.
+                  minimum: 50
+                  maximum: 1000
+                  example: 500
       responses:
         "200":
           description: Command accepted

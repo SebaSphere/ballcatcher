@@ -11,13 +11,13 @@ interface IMotorControl {
     fun tick()
 
     // move to angle within 360 degrees of motor, suspends until reached
-    suspend fun moveToAngle(degrees: Float)
+    suspend fun moveToAngle(degrees: Float, speed: Int = 1000)
 
     // move specified number of degrees in the clockwise direction, suspends until reached
-    suspend fun moveClockwise(degrees: Float)
+    suspend fun moveClockwise(degrees: Float, speed: Int = 1000)
 
     // move specified number of degrees in the counter-clockwise direction, suspends until reached
-    suspend fun moveCounterClockwise(degrees: Float)
+    suspend fun moveCounterClockwise(degrees: Float, speed: Int = 1000)
 
     // moves the switch left until it hits the "left-button", keeps track of how far it has moved
     suspend fun continuousMoveTillSwitchLeft()
