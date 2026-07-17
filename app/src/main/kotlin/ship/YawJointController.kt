@@ -5,6 +5,7 @@ import com.pi4j.io.gpio.digital.DigitalOutput
 import com.pi4j.io.gpio.digital.DigitalState
 import com.pi4j.io.gpio.digital.PullResistance
 import com.pi4j.ktx.io.digital.digitalInput
+import com.pi4j.ktx.io.digital.onHigh
 import dev.sebastianb.ballcatcher.app.motor.IMotorControl
 import dev.sebastianb.ballcatcher.app.motor.IMotorFeedback
 import dev.sebastianb.ballcatcher.app.motor.IMotorUnit
@@ -250,9 +251,7 @@ class YawJointController(
             pull(PullResistance.PULL_UP)
             debounce(50000L)
         }.apply {
-            addListener({ event ->
-                if (event.state() == DigitalState.HIGH) println("[SWITCH] Left switch pressed")
-            })
+            onHigh { println("[SWITCH] Left switch pressed") }
         }
 
         private val rightSwitch = pi4j.digitalInput(rightSwitchPin) {
@@ -261,9 +260,7 @@ class YawJointController(
             pull(PullResistance.PULL_UP)
             debounce(50000L)
         }.apply {
-            addListener({ event ->
-                if (event.state() == DigitalState.HIGH) println("[SWITCH] Right switch pressed")
-            })
+            onHigh { println("[SWITCH] Right switch pressed") }
         }
 
         override val isAtLeftSwitch: Boolean
