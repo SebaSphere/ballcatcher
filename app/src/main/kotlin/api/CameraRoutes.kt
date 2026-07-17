@@ -1,6 +1,7 @@
 package dev.sebastianb.ballcatcher.app.api
 
 import dev.sebastianb.ballcatcher.app.api.dto.CommandResponse
+import dev.sebastianb.ballcatcher.app.camera.RawPhotoCapture
 import dev.sebastianb.ballcatcher.app.camera.StereoCalibrationCapture
 import io.ktor.server.request.*
 import io.ktor.server.response.*
@@ -12,6 +13,9 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class CalibrationCaptureRequest(val count: Int, val delayMs: Long = 0)
 
+@Serializable
+data class RawCaptureResponse(val timestamp: String, val rightPath: String, val leftPath: String)
+
 fun Route.cameraRoutes() {
     route("/camera") {
         post("/calibration-capture") {
@@ -21,6 +25,13 @@ fun Route.cameraRoutes() {
                 capture.capture(request.count, request.delayMs)
             }
             call.respond(CommandResponse(true, "Captured $saved calibration image pairs"))
+        }
+
+        post("/raw-capture") {
+            val result = withContext(Dispatchers.IO) {
+                RawPhotoCapture().capture()
+            }
+            call.respond(RawCaptureResponse(result.timestamp, result.rightPath, result.leftPath))
         }
     }
 }
