@@ -35,6 +35,12 @@ class YawJointController(
     var rightSwitchSteps: Long = 0
         private set
 
+    // Calibrated angular bounds — set after calibrateHome() completes, null until then
+    var calibratedLeftAngle: Double? = null
+        private set
+    var calibratedRightAngle: Double? = null
+        private set
+
     // Takes a 0.0-1.0 float representing position between left (0) and right (1) switches
     // After homing, motor is at right switch (steps=0), left switch is in the negative direction
     // Uses trapezoidal speed profile: ramp up, cruise, ramp down
@@ -109,11 +115,13 @@ class YawJointController(
             continuousMoveTillSwitchLeft()
             leftSwitchSteps = abs(motorFeedback.currentRawSteps)
             val leftAngle = motorFeedback.currentAngle
+            calibratedLeftAngle = leftAngle
             (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
 
             continuousMoveTillSwitchRight()
             rightSwitchSteps = abs(motorFeedback.currentRawSteps)
             val rightAngle = motorFeedback.currentAngle
+            calibratedRightAngle = rightAngle
             (motorFeedback as TwoSwitchEncoderFeedback).resetSteps()
 
             println("Homing complete — Left: $leftSwitchSteps steps ($leftAngle°), Right: $rightSwitchSteps steps ($rightAngle°)")
