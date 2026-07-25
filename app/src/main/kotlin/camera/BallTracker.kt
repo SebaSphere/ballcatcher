@@ -84,6 +84,8 @@ class BallTracker(
             val up       = doubleArrayOf(0.0, 1.0, 0.0)
 
             val ctrl = yawController.motorControl as YawJointController.HardwarePwmMotorControl
+            val previousMaxFreq = ctrl.moveMaxFreq
+            ctrl.moveMaxFreq = 200  // cap speed during tracking — prevents step-skipping
 
             val frameR = Mat()
             val frameL = Mat()
@@ -149,7 +151,7 @@ class BallTracker(
                     delay(updateIntervalMs)
                 }
             } finally {
-                // Hold position on stop so the motor doesn't chase a stale target
+                ctrl.moveMaxFreq = previousMaxFreq
                 ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                 camR.release()
                 camL.release()
