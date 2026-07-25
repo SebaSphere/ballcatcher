@@ -37,6 +37,9 @@ data class FisheyeCalibrateRequest(
 private const val FISHEYE_CALIBRATION_PATH = "fisheye_calibration.yml"
 
 @Serializable
+data class TrackBallRequest(val flipPanDirection: Boolean = false)
+
+@Serializable
 data class ScanCycleRequest(
     val count: Int,
     val cycles: Int = 1,
@@ -82,9 +85,10 @@ fun Route.cameraRoutes(controller: YawJointController) {
                     call.respond(HttpStatusCode.Conflict, CommandResponse(false, "Ball tracking is already active"))
                     return@post
                 }
-                ballTracker = BallTracker(controller)
+                val request = call.receive<TrackBallRequest>()
+                ballTracker = BallTracker(controller, flipPanDirection = request.flipPanDirection)
                 ballTracker!!.start(cameraScope)
-                call.respond(CommandResponse(true, "Ball tracking started"))
+                call.respond(CommandResponse(true, "Ball tracking started (flipPanDirection=${request.flipPanDirection})"))
             }
 
             post("/stop") {

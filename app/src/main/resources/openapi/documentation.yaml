@@ -327,6 +327,19 @@ paths:
 
         **Prerequisites:** `/api/motor/calibrate-home` should be run first so pan is clamped
         to the safe angular range.
+
+        If the head pans the wrong direction, set `flipPanDirection: true` to invert the correction.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                flipPanDirection:
+                  type: boolean
+                  default: false
+                  description: Set true if the head tracks away from the ball instead of toward it.
       responses:
         "200":
           description: Tracking started

@@ -28,13 +28,14 @@ import kotlin.math.tan
  * Coordinate frame (head-local):
  *   +X = right, +Y = up, +Z = forward (away from cameras)
  *
- * @param rightCameraId   OpenCV device ID for the right camera (default 0)
- * @param leftCameraId    OpenCV device ID for the left camera (default 2)
- * @param cameraVFov      Vertical field of view in degrees (default 67°)
- * @param baselineMeters  Distance between the two cameras in metres (default 0.12 = 120 mm)
- * @param deadbandDeg     Ignore pan corrections smaller than this many degrees (default 2°)
- * @param updateIntervalMs How often to update the motor target in ms (default 100 ms = ~10 Hz)
- * @param smoothingAlpha  Exponential smoothing factor for ball angle (0 = frozen, 1 = raw). Default 0.3.
+ * @param rightCameraId    OpenCV device ID for the right camera (default 0)
+ * @param leftCameraId     OpenCV device ID for the left camera (default 2)
+ * @param cameraVFov       Vertical field of view in degrees (default 67°)
+ * @param baselineMeters   Distance between the two cameras in metres (default 0.12 = 120 mm)
+ * @param deadbandDeg      Ignore pan corrections smaller than this many degrees (default 3°)
+ * @param updateIntervalMs How often to update the motor target in ms (default 150 ms = ~7 Hz)
+ * @param smoothingAlpha   Exponential smoothing factor for ball angle (0 = frozen, 1 = raw). Default 0.2.
+ * @param flipPanDirection Set true if the head pans the wrong way — swaps which camera is treated as left/right.
  */
 class BallTracker(
     private val yawController: YawJointController,
@@ -42,9 +43,10 @@ class BallTracker(
     private val leftCameraId: Int = 2,
     private val cameraVFov: Double = 67.0,
     private val baselineMeters: Double = 0.12,
-    private val deadbandDeg: Double = 2.0,
-    private val updateIntervalMs: Long = 100L,
-    private val smoothingAlpha: Double = 0.3,
+    private val deadbandDeg: Double = 3.0,
+    private val updateIntervalMs: Long = 150L,
+    private val smoothingAlpha: Double = 0.2,
+    private val flipPanDirection: Boolean = false,
 ) {
     companion object {
         init {
@@ -113,11 +115,14 @@ class BallTracker(
                         ballPosition3D = pos3D
 
                         // Horizontal angle to the ball from the head's forward axis
-                        val angleToball = Math.toDegrees(atan2(pos3D[0], pos3D[2]))
+                        // flipPanDirection negates X if cameras are physically swapped
+                        val ballX = if (flipPanDirection) -pos3D[0] else pos3D[0]
+                        val angleToball = Math.toDegrees(atan2(ballX, pos3D[2]))
 
-                        // Absolute target = current head angle + angle-to-ball (one-shot, not cumulative)
-                        val currentAngle = yawController.motorFeedback.currentAngle
-                        val rawTarget = currentAngle + angleToball
+                        // Base off ctrl.targetAngle (where we're heading), not currentAngle (where we are).
+                        // Using currentAngle causes oscillation: motor is mid-move, we add another correction,
+                        // overshoot, detect opposite error, repeat.
+                        val rawTarget = ctrl.targetAngle + angleToball
 
                         // Exponential smoothing to damp out noisy detections
                         smoothedTargetAngle = if (smoothedTargetAngle == null) {
@@ -126,7 +131,7 @@ class BallTracker(
                             smoothedTargetAngle!! * (1.0 - smoothingAlpha) + rawTarget * smoothingAlpha
                         }
 
-                        val error = smoothedTargetAngle!! - currentAngle
+                        val error = smoothedTargetAngle!! - ctrl.targetAngle
                         if (abs(error) > deadbandDeg) {
                             var newTarget = smoothedTargetAngle!!.toFloat()
                             val leftBound = yawController.calibratedLeftAngle
