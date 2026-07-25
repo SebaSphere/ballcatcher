@@ -36,6 +36,8 @@ import kotlin.math.tan
  * @param updateIntervalMs How often to update the motor target in ms (default 150 ms = ~7 Hz)
  * @param smoothingAlpha   Exponential smoothing factor for ball angle (0 = frozen, 1 = raw). Default 0.2.
  * @param flipPanDirection Set true if the head pans the wrong way — swaps which camera is treated as left/right.
+ * @param boundMarginDeg   Soft safety margin in degrees kept inside each calibrated limit (default 5°).
+ * @param trackingMaxFreq  Max motor pulse frequency during tracking in Hz (default 100 — avoids step-skipping).
  */
 class BallTracker(
     private val yawController: YawJointController,
@@ -47,6 +49,8 @@ class BallTracker(
     private val updateIntervalMs: Long = 150L,
     private val smoothingAlpha: Double = 0.2,
     private val flipPanDirection: Boolean = false,
+    private val boundMarginDeg: Double = 5.0,
+    private val trackingMaxFreq: Int = 100,
 ) {
     companion object {
         init {
@@ -87,7 +91,7 @@ class BallTracker(
 
             val ctrl = yawController.motorControl as YawJointController.HardwarePwmMotorControl
             val previousMaxFreq = ctrl.moveMaxFreq
-            ctrl.moveMaxFreq = 200  // cap speed during tracking — prevents step-skipping
+            ctrl.moveMaxFreq = trackingMaxFreq  // cap speed during tracking — prevents step-skipping
 
             val frameR = Mat()
             val frameL = Mat()
@@ -134,13 +138,27 @@ class BallTracker(
                         val error = smoothedTargetAngle!! - ctrl.targetAngle
                         if (abs(error) > deadbandDeg) {
                             var newTarget = smoothedTargetAngle!!.toFloat()
-                            val leftBound = yawController.calibratedLeftAngle
-                            val rightBound = yawController.calibratedRightAngle
-                            if (leftBound != null && rightBound != null) {
-                                val lo = minOf(leftBound, rightBound).toFloat()
-                                val hi = maxOf(leftBound, rightBound).toFloat()
-                                newTarget = newTarget.coerceIn(lo, hi)
+
+                            // Hard stop if a limit switch is physically triggered —
+                            // clamp to current position so the motor stops immediately.
+                            val feedback = yawController.motorFeedback
+                            if (feedback.isAtLeftSwitch && newTarget < ctrl.targetAngle) {
+                                println("BallTracker: left limit switch triggered — blocking further left movement")
+                                newTarget = ctrl.targetAngle
+                            } else if (feedback.isAtRightSwitch && newTarget > ctrl.targetAngle) {
+                                println("BallTracker: right limit switch triggered — blocking further right movement")
+                                newTarget = ctrl.targetAngle
+                            } else {
+                                // Soft bounds: stay boundMarginDeg inside each calibrated limit
+                                val leftBound = yawController.calibratedLeftAngle
+                                val rightBound = yawController.calibratedRightAngle
+                                if (leftBound != null && rightBound != null) {
+                                    val lo = (minOf(leftBound, rightBound) + boundMarginDeg).toFloat()
+                                    val hi = (maxOf(leftBound, rightBound) - boundMarginDeg).toFloat()
+                                    newTarget = newTarget.coerceIn(lo, hi)
+                                }
                             }
+
                             ctrl.targetAngle = newTarget
                             println("BallTracker: ball at (%.3f, %.3f, %.3f)m → pan to %.1f°".format(
                                 pos3D[0], pos3D[1], pos3D[2], newTarget
