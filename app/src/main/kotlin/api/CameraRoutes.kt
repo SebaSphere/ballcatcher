@@ -4,6 +4,7 @@ import dev.sebastianb.ballcatcher.app.api.dto.CommandResponse
 import dev.sebastianb.ballcatcher.app.camera.FisheyeCalibrationResult
 import dev.sebastianb.ballcatcher.app.camera.FisheyeCalibrator
 import dev.sebastianb.ballcatcher.app.camera.FisheyeUndistorter
+import dev.sebastianb.ballcatcher.app.camera.BallTracker
 import dev.sebastianb.ballcatcher.app.camera.RawPhotoCapture
 import dev.sebastianb.ballcatcher.app.camera.ScanCycle
 import dev.sebastianb.ballcatcher.app.camera.StereoCalibrationCapture
@@ -45,6 +46,7 @@ data class ScanCycleRequest(
 
 fun Route.cameraRoutes(controller: YawJointController) {
     val cameraScope = CoroutineScope(Dispatchers.Default)
+    var ballTracker: BallTracker? = null
 
     route("/camera") {
         post("/fisheye-calibrate") {
@@ -72,6 +74,29 @@ fun Route.cameraRoutes(controller: YawJointController) {
                 RawPhotoCapture().capture()
             }
             call.respond(RawCaptureResponse(result.timestamp, result.rightPath, result.leftPath))
+        }
+
+        route("/track-ball") {
+            post("/start") {
+                if (ballTracker?.isTracking == true) {
+                    call.respond(HttpStatusCode.Conflict, CommandResponse(false, "Ball tracking is already active"))
+                    return@post
+                }
+                ballTracker = BallTracker(controller)
+                ballTracker!!.start(cameraScope)
+                call.respond(CommandResponse(true, "Ball tracking started"))
+            }
+
+            post("/stop") {
+                val tracker = ballTracker
+                if (tracker == null || !tracker.isTracking) {
+                    call.respond(HttpStatusCode.Conflict, CommandResponse(false, "Ball tracking is not active"))
+                    return@post
+                }
+                tracker.stop()
+                ballTracker = null
+                call.respond(CommandResponse(true, "Ball tracking stopped"))
+            }
         }
 
         post("/scan-cycle") {
