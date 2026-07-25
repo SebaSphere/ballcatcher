@@ -3,9 +3,9 @@ package dev.sebastianb.ballcatcher.app.camera
 import dev.sebastianb.ballcatcher.app.ship.YawJointController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.yield
 import nu.pattern.OpenCV
 import org.opencv.core.Core
 import org.opencv.core.Mat
@@ -23,16 +23,18 @@ import kotlin.math.tan
 
 /**
  * Tracks a green ball using both stereo cameras to compute its 3D position,
- * then pans the head to keep it centered.
+ * then pans the head to keep it centred.
  *
  * Coordinate frame (head-local):
  *   +X = right, +Y = up, +Z = forward (away from cameras)
  *
- * @param rightCameraId  OpenCV device ID for the right camera (default 0)
- * @param leftCameraId   OpenCV device ID for the left camera (default 2)
- * @param cameraVFov     Vertical field of view in degrees (default 67°)
- * @param baselineMeters Distance between the two cameras in metres (default 0.12 = 120 mm)
- * @param deadbandDeg    Ignore pan corrections smaller than this many degrees (default 1°)
+ * @param rightCameraId   OpenCV device ID for the right camera (default 0)
+ * @param leftCameraId    OpenCV device ID for the left camera (default 2)
+ * @param cameraVFov      Vertical field of view in degrees (default 67°)
+ * @param baselineMeters  Distance between the two cameras in metres (default 0.12 = 120 mm)
+ * @param deadbandDeg     Ignore pan corrections smaller than this many degrees (default 2°)
+ * @param updateIntervalMs How often to update the motor target in ms (default 100 ms = ~10 Hz)
+ * @param smoothingAlpha  Exponential smoothing factor for ball angle (0 = frozen, 1 = raw). Default 0.3.
  */
 class BallTracker(
     private val yawController: YawJointController,
@@ -40,7 +42,9 @@ class BallTracker(
     private val leftCameraId: Int = 2,
     private val cameraVFov: Double = 67.0,
     private val baselineMeters: Double = 0.12,
-    private val deadbandDeg: Double = 1.0,
+    private val deadbandDeg: Double = 2.0,
+    private val updateIntervalMs: Long = 100L,
+    private val smoothingAlpha: Double = 0.3,
 ) {
     companion object {
         init {
@@ -51,7 +55,7 @@ class BallTracker(
     @Volatile
     private var trackingJob: Job? = null
 
-    /** The most recently triangulated ball position in head-local space (X, Y, Z) in metres, or null if not seen. */
+    /** The most recently triangulated ball position in head-local space (X, Y, Z) metres, null if not seen. */
     @Volatile
     var ballPosition3D: DoubleArray? = null
         private set
@@ -73,21 +77,27 @@ class BallTracker(
             }
             println("BallTracker: stereo tracking started (right=$rightCameraId, left=$leftCameraId, baseline=${baselineMeters * 1000}mm)")
 
-            // Left camera sits at -baseline/2 on the X axis, right at +baseline/2
+            // Left camera at -baseline/2 on X, right at +baseline/2; both pointing +Z
             val leftPos  = doubleArrayOf(-baselineMeters / 2.0, 0.0, 0.0)
             val rightPos = doubleArrayOf( baselineMeters / 2.0, 0.0, 0.0)
             val forward  = doubleArrayOf(0.0, 0.0, 1.0)
             val up       = doubleArrayOf(0.0, 1.0, 0.0)
 
+            val ctrl = yawController.motorControl as YawJointController.HardwarePwmMotorControl
+
             val frameR = Mat()
             val frameL = Mat()
+
+            // Smoothed absolute target angle; initialised to current head angle on first detection
+            var smoothedTargetAngle: Double? = null
+
             try {
                 while (isActive) {
                     val readR = camR.read(frameR)
                     val readL = camL.read(frameL)
 
                     if (!readR || !readL || frameR.empty() || frameL.empty()) {
-                        yield()
+                        delay(updateIntervalMs)
                         continue
                     }
 
@@ -100,22 +110,47 @@ class BallTracker(
                         val pos3D = triangulate(centerL, centerR, w, h, leftPos, rightPos, forward, up)
                         ballPosition3D = pos3D
 
-                        // atan2(X, Z) gives horizontal angle to the ball from the camera midpoint
-                        val panOffsetDeg = Math.toDegrees(atan2(pos3D[0], pos3D[2]))
-                        println("BallTracker: ball at (%.3f, %.3f, %.3f)m — pan offset %.1f°".format(
-                            pos3D[0], pos3D[1], pos3D[2], panOffsetDeg
-                        ))
+                        // Horizontal angle to the ball from the head's forward axis
+                        val angleToball = Math.toDegrees(atan2(pos3D[0], pos3D[2]))
 
-                        if (abs(panOffsetDeg) > deadbandDeg) {
-                            applyPanOffset(panOffsetDeg)
+                        // Absolute target = current head angle + angle-to-ball (one-shot, not cumulative)
+                        val currentAngle = yawController.motorFeedback.currentAngle
+                        val rawTarget = currentAngle + angleToball
+
+                        // Exponential smoothing to damp out noisy detections
+                        smoothedTargetAngle = if (smoothedTargetAngle == null) {
+                            rawTarget
+                        } else {
+                            smoothedTargetAngle!! * (1.0 - smoothingAlpha) + rawTarget * smoothingAlpha
+                        }
+
+                        val error = smoothedTargetAngle!! - currentAngle
+                        if (abs(error) > deadbandDeg) {
+                            var newTarget = smoothedTargetAngle!!.toFloat()
+                            val leftBound = yawController.calibratedLeftAngle
+                            val rightBound = yawController.calibratedRightAngle
+                            if (leftBound != null && rightBound != null) {
+                                val lo = minOf(leftBound, rightBound).toFloat()
+                                val hi = maxOf(leftBound, rightBound).toFloat()
+                                newTarget = newTarget.coerceIn(lo, hi)
+                            }
+                            ctrl.targetAngle = newTarget
+                            println("BallTracker: ball at (%.3f, %.3f, %.3f)m → pan to %.1f°".format(
+                                pos3D[0], pos3D[1], pos3D[2], newTarget
+                            ))
                         }
                     } else {
+                        // Ball not seen — hold current position so the motor has nothing to chase
                         ballPosition3D = null
+                        smoothedTargetAngle = null
+                        ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                     }
 
-                    yield()
+                    delay(updateIntervalMs)
                 }
             } finally {
+                // Hold position on stop so the motor doesn't chase a stale target
+                ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                 camR.release()
                 camL.release()
                 frameR.release()
@@ -129,21 +164,6 @@ class BallTracker(
     fun stop() {
         trackingJob?.cancel()
         trackingJob = null
-    }
-
-    private fun applyPanOffset(offsetDeg: Double) {
-        val ctrl = yawController.motorControl as YawJointController.HardwarePwmMotorControl
-        val currentAngle = yawController.motorFeedback.currentAngle
-        val leftBound = yawController.calibratedLeftAngle
-        val rightBound = yawController.calibratedRightAngle
-
-        var newTarget = (currentAngle + offsetDeg).toFloat()
-        if (leftBound != null && rightBound != null) {
-            val lo = minOf(leftBound, rightBound).toFloat()
-            val hi = maxOf(leftBound, rightBound).toFloat()
-            newTarget = newTarget.coerceIn(lo, hi)
-        }
-        ctrl.targetAngle = newTarget
     }
 
     // ── Detection ────────────────────────────────────────────────────────────
@@ -216,7 +236,7 @@ class BallTracker(
         val a = dot(d1, d1); val b = dot(d1, d2); val c = dot(d2, d2)
         val d = dot(d1, w0); val e = dot(d2, w0)
         val denom = a * c - b * b
-        if (denom < 1e-10) return p1 // rays nearly parallel — can't triangulate
+        if (denom < 1e-10) return p1
         val t = (b * e - c * d) / denom
         val s = (a * e - b * d) / denom
         val c1 = doubleArrayOf(p1[0] + t * d1[0], p1[1] + t * d1[1], p1[2] + t * d1[2])
