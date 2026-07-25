@@ -26,7 +26,8 @@ class StereoCalibrationCapture(
     }
 
     fun capture(count: Int, delayMs: Long = 0): Int {
-        println("Starting calibration capture: saving $count image pairs with ${delayMs}ms delay")
+        println("[CalibCapture] Starting: target=$count pairs, delay=${delayMs}ms, board=${chessBoardSize.width.toInt()}x${chessBoardSize.height.toInt()}, outputDir=$outputDirectory")
+        val sessionStart = System.currentTimeMillis()
 
         var imageId = 0
         val criteria = TermCriteria(TermCriteria.EPS + TermCriteria.MAX_ITER, 30, 0.001)
@@ -34,8 +35,7 @@ class StereoCalibrationCapture(
         val camR = VideoCapture(rightCameraId)
         val camL = VideoCapture(leftCameraId)
 
-        println("Right camera (id=$rightCameraId) opened: ${camR.isOpened}")
-        println("Left camera (id=$leftCameraId) opened: ${camL.isOpened}")
+        println("[CalibCapture] Camera open — right(id=$rightCameraId): ${camR.isOpened}, left(id=$leftCameraId): ${camL.isOpened}")
 
         if (!camR.isOpened || !camL.isOpened) {
             camR.release()
@@ -46,6 +46,12 @@ class StereoCalibrationCapture(
         camR.set(Videoio.CAP_PROP_FOURCC, VideoWriter.fourcc('M', 'J', 'P', 'G').toDouble())
         camL.set(Videoio.CAP_PROP_FOURCC, VideoWriter.fourcc('M', 'J', 'P', 'G').toDouble())
 
+        val resRW = camR.get(Videoio.CAP_PROP_FRAME_WIDTH).toInt()
+        val resRH = camR.get(Videoio.CAP_PROP_FRAME_HEIGHT).toInt()
+        val resLW = camL.get(Videoio.CAP_PROP_FRAME_WIDTH).toInt()
+        val resLH = camL.get(Videoio.CAP_PROP_FRAME_HEIGHT).toInt()
+        println("[CalibCapture] Camera resolution — right: ${resRW}x${resRH}, left: ${resLW}x${resLH}")
+
         val frameR = Mat()
         val frameL = Mat()
         val grayR = Mat()
@@ -53,40 +59,65 @@ class StereoCalibrationCapture(
 
         try {
             var readFailures = 0
+            var totalFrames = 0
+            var chessboardMisses = 0
+
             while (imageId < count) {
+                val frameStart = System.currentTimeMillis()
+
                 val readR = camR.read(frameR)
                 val readL = camL.read(frameL)
+                val readMs = System.currentTimeMillis() - frameStart
+
                 if (!readR || !readL) {
                     readFailures++
-                    println("Frame read failed (right=$readR, left=$readL) — attempt $readFailures")
+                    println("[CalibCapture] Frame read FAILED (right=$readR, left=$readL) — failure #$readFailures, elapsed=${System.currentTimeMillis() - sessionStart}ms")
                     if (readFailures > 100) {
                         error("Too many consecutive read failures, aborting")
                     }
                     continue
                 }
                 readFailures = 0
+                totalFrames++
 
                 Imgproc.cvtColor(frameR, grayR, Imgproc.COLOR_BGR2GRAY)
                 Imgproc.cvtColor(frameL, grayL, Imgproc.COLOR_BGR2GRAY)
 
                 val cornersR = MatOfPoint2f()
                 val cornersL = MatOfPoint2f()
+
+                val detectStart = System.currentTimeMillis()
                 val retR = Calib3d.findChessboardCorners(grayR, chessBoardSize, cornersR)
                 val retL = Calib3d.findChessboardCorners(grayL, chessBoardSize, cornersL)
+                val detectMs = System.currentTimeMillis() - detectStart
 
-                if (retR && retL) {
-                    Imgproc.cornerSubPix(grayR, cornersR, Size(11.0, 11.0), Size(-1.0, -1.0), criteria)
-                    Imgproc.cornerSubPix(grayL, cornersL, Size(11.0, 11.0), Size(-1.0, -1.0), criteria)
-
-                    println("Images $imageId saved for right and left cameras")
-                    Imgcodecs.imwrite("$outputDirectory/chessboard-R$imageId.png", frameR)
-                    Imgcodecs.imwrite("$outputDirectory/chessboard-L$imageId.png", frameL)
-                    println("Images saved at $outputDirectory/chessboard-R$imageId.png and $outputDirectory/chessboard-L$imageId.png")
-                    imageId++
-
-                    if (delayMs > 0 && imageId < count) {
-                        Thread.sleep(delayMs)
+                if (!retR || !retL) {
+                    chessboardMisses++
+                    if (chessboardMisses % 10 == 0) {
+                        println("[CalibCapture] Chessboard NOT found — right=$retR, left=$retL | frames=$totalFrames, misses=$chessboardMisses, captured=$imageId/$count, readMs=$readMs, detectMs=$detectMs, elapsed=${System.currentTimeMillis() - sessionStart}ms")
                     }
+                    continue
+                }
+
+                val subpixStart = System.currentTimeMillis()
+                Imgproc.cornerSubPix(grayR, cornersR, Size(11.0, 11.0), Size(-1.0, -1.0), criteria)
+                Imgproc.cornerSubPix(grayL, cornersL, Size(11.0, 11.0), Size(-1.0, -1.0), criteria)
+                val subpixMs = System.currentTimeMillis() - subpixStart
+
+                println("[CalibCapture] Chessboard FOUND — saving pair $imageId | readMs=$readMs, detectMs=$detectMs, subpixMs=$subpixMs, missesSinceLastCapture=$chessboardMisses, totalFrames=$totalFrames")
+                chessboardMisses = 0
+
+                val writeStart = System.currentTimeMillis()
+                Imgcodecs.imwrite("$outputDirectory/chessboard-R$imageId.png", frameR)
+                Imgcodecs.imwrite("$outputDirectory/chessboard-L$imageId.png", frameL)
+                val writeMs = System.currentTimeMillis() - writeStart
+
+                imageId++
+                println("[CalibCapture] Pair $imageId/$count saved (writeMs=$writeMs) → $outputDirectory/chessboard-[RL]${imageId - 1}.png | elapsed=${System.currentTimeMillis() - sessionStart}ms")
+
+                if (delayMs > 0 && imageId < count) {
+                    println("[CalibCapture] Sleeping ${delayMs}ms before next capture…")
+                    Thread.sleep(delayMs)
                 }
             }
         } finally {
@@ -98,7 +129,7 @@ class StereoCalibrationCapture(
             grayL.release()
         }
 
-        println("Calibration capture complete: $imageId image pairs saved")
+        println("[CalibCapture] Done — $imageId pairs saved in ${System.currentTimeMillis() - sessionStart}ms")
         return imageId
     }
 }
