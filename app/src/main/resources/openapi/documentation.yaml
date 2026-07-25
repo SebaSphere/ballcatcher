@@ -210,6 +210,34 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommandResponse"
 
+  /api/camera/fisheye-calibrate:
+    post:
+      tags: [Camera]
+      summary: Run fisheye lens calibration
+      description: |
+        Processes previously captured chessboard image pairs (from `/api/camera/calibration-capture`)
+        to compute fisheye distortion parameters (K matrix and D coefficients) for each camera.
+        Results are saved to `fisheye_calibration.txt` on the Pi and will be automatically applied
+        to all subsequent scan cycle captures.
+
+        **Workflow:**
+        1. Run `/api/camera/calibration-capture` to collect chessboard images
+        2. Run this endpoint to compute and save calibration
+        3. Run `/api/camera/scan-cycle` — undistortion is applied automatically if calibration exists
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FisheyeCalibrateRequest"
+      responses:
+        "200":
+          description: Calibration complete and saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
   /api/camera/calibration-capture:
     post:
       tags: [Camera]
@@ -263,6 +291,8 @@ paths:
         Direction alternates each cycle (left→right, then right→left).
         Requires `/api/motor/calibrate-home` to have been run first.
         Returns immediately — sweep runs in the background.
+        If `fisheye_calibration.txt` exists (produced by `/api/camera/fisheye-calibrate`),
+        fisheye undistortion is automatically applied to every saved frame.
       requestBody:
         required: true
         content:
@@ -408,6 +438,25 @@ components:
           description: Milliseconds to pause at the end of each sweep before reversing direction
           default: 500
           example: 500
+
+    FisheyeCalibrateRequest:
+      type: object
+      properties:
+        imageDir:
+          type: string
+          description: Directory containing the chessboard-R*.png / chessboard-L*.png image pairs
+          default: "."
+          example: "."
+        boardWidth:
+          type: integer
+          description: Number of inner corners along the chessboard width
+          default: 7
+          example: 7
+        boardHeight:
+          type: integer
+          description: Number of inner corners along the chessboard height
+          default: 7
+          example: 7
 
     CommandResponse:
       type: object

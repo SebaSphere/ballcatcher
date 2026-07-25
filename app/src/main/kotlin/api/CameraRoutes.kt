@@ -1,6 +1,9 @@
 package dev.sebastianb.ballcatcher.app.api
 
 import dev.sebastianb.ballcatcher.app.api.dto.CommandResponse
+import dev.sebastianb.ballcatcher.app.camera.FisheyeCalibrationResult
+import dev.sebastianb.ballcatcher.app.camera.FisheyeCalibrator
+import dev.sebastianb.ballcatcher.app.camera.FisheyeUndistorter
 import dev.sebastianb.ballcatcher.app.camera.RawPhotoCapture
 import dev.sebastianb.ballcatcher.app.camera.ScanCycle
 import dev.sebastianb.ballcatcher.app.camera.StereoCalibrationCapture
@@ -24,6 +27,15 @@ data class CalibrationCaptureRequest(val count: Int, val delayMs: Long = 0)
 data class RawCaptureResponse(val timestamp: String, val rightPath: String, val leftPath: String)
 
 @Serializable
+data class FisheyeCalibrateRequest(
+    val imageDir: String = ".",
+    val boardWidth: Int = 7,
+    val boardHeight: Int = 7,
+)
+
+private const val FISHEYE_CALIBRATION_PATH = "fisheye_calibration.yml"
+
+@Serializable
 data class ScanCycleRequest(
     val count: Int,
     val cycles: Int = 1,
@@ -35,6 +47,17 @@ fun Route.cameraRoutes(controller: YawJointController) {
     val cameraScope = CoroutineScope(Dispatchers.Default)
 
     route("/camera") {
+        post("/fisheye-calibrate") {
+            val request = call.receive<FisheyeCalibrateRequest>()
+            val boardSize = org.opencv.core.Size(request.boardWidth.toDouble(), request.boardHeight.toDouble())
+            withContext(Dispatchers.IO) {
+                FisheyeCalibrator(boardSize)
+                    .calibrate(request.imageDir)
+                    .save(FISHEYE_CALIBRATION_PATH)
+            }
+            call.respond(CommandResponse(true, "Fisheye calibration complete — saved to $FISHEYE_CALIBRATION_PATH"))
+        }
+
         post("/calibration-capture") {
             val request = call.receive<CalibrationCaptureRequest>()
             val capture = StereoCalibrationCapture()
@@ -65,7 +88,11 @@ fun Route.cameraRoutes(controller: YawJointController) {
 
             val request = call.receive<ScanCycleRequest>()
             val sessionTimestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS"))
-            val scanCycle = ScanCycle(leftAngle, rightAngle, controller)
+            val calibration = FisheyeCalibrationResult.load(FISHEYE_CALIBRATION_PATH)
+            val undistorterR = calibration?.let { FisheyeUndistorter(it.kR, it.dR, it.imageSize) }
+            val undistorterL = calibration?.let { FisheyeUndistorter(it.kL, it.dL, it.imageSize) }
+            if (calibration != null) println("CameraRoutes: fisheye calibration loaded — undistortion active")
+            val scanCycle = ScanCycle(leftAngle, rightAngle, controller, undistorterR = undistorterR, undistorterL = undistorterL)
 
             cameraScope.launch {
                 for (cycle in 1..request.cycles) {

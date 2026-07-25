@@ -19,6 +19,8 @@ class ScanCycle(
     private val yawController: YawJointController,
     private val rightCameraId: Int = 0,
     private val leftCameraId: Int = 2,
+    private val undistorterR: FisheyeUndistorter? = null,
+    private val undistorterL: FisheyeUndistorter? = null,
 ) {
     companion object {
         private val TIMESTAMP_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss-SSS")
@@ -123,8 +125,14 @@ class ScanCycle(
                     break
                 }
 
-                Imgcodecs.imwrite(File("${stepDir.path}/right.png").absolutePath, frameR)
-                Imgcodecs.imwrite(File("${stepDir.path}/left.png").absolutePath, frameL)
+                val saveR = if (undistorterR != null) Mat().also { undistorterR.undistort(frameR, it) } else frameR
+                val saveL = if (undistorterL != null) Mat().also { undistorterL.undistort(frameL, it) } else frameL
+
+                Imgcodecs.imwrite(File("${stepDir.path}/right.png").absolutePath, saveR)
+                Imgcodecs.imwrite(File("${stepDir.path}/left.png").absolutePath, saveL)
+
+                if (undistorterR != null) saveR.release()
+                if (undistorterL != null) saveL.release()
 
                 File("${stepDir.path}/info.txt").writeText(
                     """
