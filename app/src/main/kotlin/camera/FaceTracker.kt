@@ -86,6 +86,11 @@ class FaceTracker(
         cascade.detectMultiScale3(gray, faces, rejectLevels, levelWeights, 1.1, 3, 0, minFaceSize, Size(), true)
 
         val faceArr = faces.toArray()
+        if (faceArr.isEmpty()) return null
+
+        // With zero detections, OpenCV hands back a degenerate 0x1 levelWeights Mat that fails this
+        // binding's checkVector() and makes MatOfDouble.toArray() throw — only touch it once we know
+        // there's at least one detection to have produced a real vector.
         val weights = levelWeights.toArray()
 
         // Only trust detections at or above minDetectionConfidence — a shaky, marginal detection is
@@ -96,9 +101,7 @@ class FaceTracker(
             .maxByOrNull { faceArr[it].width.toLong() * faceArr[it].height }
 
         if (bestIndex == null) {
-            if (faceArr.isNotEmpty()) {
-                println("FaceTracker: rejected ${faceArr.size} detection(s) below minDetectionConfidence=$minDetectionConfidence — weights=${weights.toList()}")
-            }
+            println("FaceTracker: rejected ${faceArr.size} detection(s) below minDetectionConfidence=$minDetectionConfidence — weights=${weights.toList()}")
             return null
         }
 

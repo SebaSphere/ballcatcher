@@ -134,8 +134,18 @@ abstract class StereoPanTracker(
                         continue
                     }
 
-                    val centerL = detectCentroid(frameL)
-                    val centerR = detectCentroid(frameR)
+                    // A detector bug/quirk (e.g. a native binding edge case on zero detections) throwing
+                    // here shouldn't kill the whole tracking coroutine — treat it as a missed frame.
+                    val centerL: Point?
+                    val centerR: Point?
+                    try {
+                        centerL = detectCentroid(frameL)
+                        centerR = detectCentroid(frameR)
+                    } catch (e: Exception) {
+                        println("$logTag: detection error — ${e.message}")
+                        delay(updateIntervalMs)
+                        continue
+                    }
 
                     if (centerL != null && centerR != null) {
                         missCount = 0
