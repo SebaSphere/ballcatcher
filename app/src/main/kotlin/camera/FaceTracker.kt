@@ -2,6 +2,8 @@ package dev.sebastianb.ballcatcher.app.camera
 
 import dev.sebastianb.ballcatcher.app.ship.YawJointController
 import org.opencv.core.Mat
+import org.opencv.core.MatOfDouble
+import org.opencv.core.MatOfInt
 import org.opencv.core.MatOfRect
 import org.opencv.core.Point
 import org.opencv.core.Size
@@ -9,7 +11,18 @@ import org.opencv.imgproc.Imgproc
 import org.opencv.objdetect.CascadeClassifier
 import java.io.File
 
-/** Tracks the largest detected face using both stereo cameras. See [StereoPanTracker] for the shared control loop. */
+/**
+ * Tracks the largest, most-confident detected face using both stereo cameras. See [StereoPanTracker]
+ * for the shared control loop.
+ *
+ * @param minDetectionConfidence Minimum Haar cascade level-weight (roughly a log-likelihood; higher is
+ *                               stronger) for a detection to be trusted. Marginal detections below this
+ *                               are treated as no detection at all, rather than feeding a shaky low-
+ *                               confidence position into the control loop. This value is tuned by feel —
+ *                               log the reported confidence during a test run and adjust if faces are
+ *                               being rejected too often (lower it) or weak false positives get through
+ *                               (raise it).
+ */
 class FaceTracker(
     yawController: YawJointController,
     rightCameraId: Int = 0,
@@ -24,6 +37,8 @@ class FaceTracker(
     trackingMaxFreq: Int = 100,
     maxStepDeg: Double = 8.0,
     missToleranceTicks: Int = 5,
+    reacquireDeg: Double = 5.0,
+    private val minDetectionConfidence: Double = 3.0,
 ) : StereoPanTracker(
     yawController = yawController,
     rightCameraId = rightCameraId,
@@ -38,6 +53,7 @@ class FaceTracker(
     trackingMaxFreq = trackingMaxFreq,
     maxStepDeg = maxStepDeg,
     missToleranceTicks = missToleranceTicks,
+    reacquireDeg = reacquireDeg,
     logTag = "FaceTracker",
 ) {
     companion object {
@@ -64,9 +80,22 @@ class FaceTracker(
         val minFaceSize = (frame.cols() * 0.15).let { Size(it, it) }
 
         val faces = MatOfRect()
-        cascade.detectMultiScale(gray, faces, 1.1, 3, 0, minFaceSize)
+        val rejectLevels = MatOfInt()
+        val levelWeights = MatOfDouble()
+        cascade.detectMultiScale3(gray, faces, rejectLevels, levelWeights, 1.1, 3, 0, minFaceSize, Size(), true)
 
-        val largest = faces.toArray().maxByOrNull { it.width.toLong() * it.height } ?: return null
-        return Point(largest.x + largest.width / 2.0, largest.y + largest.height / 2.0)
+        val faceArr = faces.toArray()
+        val weights = levelWeights.toArray()
+
+        // Only trust detections at or above minDetectionConfidence — a shaky, marginal detection is
+        // treated as no detection at all (feeding into StereoPanTracker's miss-tolerance grace period)
+        // rather than jittering the head toward a low-confidence guess.
+        val bestIndex = faceArr.indices
+            .filter { weights.getOrElse(it) { 0.0 } >= minDetectionConfidence }
+            .maxByOrNull { faceArr[it].width.toLong() * faceArr[it].height }
+            ?: return null
+
+        val best = faceArr[bestIndex]
+        return Point(best.x + best.width / 2.0, best.y + best.height / 2.0)
     }
 }

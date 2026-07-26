@@ -42,6 +42,10 @@ import kotlin.math.tan
  *                           holding position (default 0 — freeze immediately on any miss). Detectors
  *                           that flicker frame-to-frame (e.g. a Haar cascade) benefit from a small
  *                           grace period so a single dropped frame doesn't stop tracking.
+ * @param reacquireDeg     Once centred (error within [deadbandDeg]), the error must exceed this wider
+ *                         threshold before tracking resumes (default equal to deadbandDeg — no
+ *                         hysteresis). This is a Schmitt trigger: it stops small jitter right at the
+ *                         deadband edge from causing repeated tiny corrections while already on target.
  * @param logTag           Prefix used in log lines so it's clear which tracker is running.
  */
 abstract class StereoPanTracker(
@@ -58,6 +62,7 @@ abstract class StereoPanTracker(
     private val trackingMaxFreq: Int = 100,
     private val maxStepDeg: Double = 4.0,
     private val missToleranceTicks: Int = 0,
+    private val reacquireDeg: Double = deadbandDeg,
     private val logTag: String = "StereoPanTracker",
 ) {
     companion object {
@@ -113,6 +118,12 @@ abstract class StereoPanTracker(
             var smoothedError: Double? = null
             var missCount = 0
 
+            // Schmitt-trigger lock: once the error falls within deadbandDeg we latch "locked" and
+            // ignore further corrections until the error grows past the wider reacquireDeg. Without
+            // this, an error hovering right at the deadband edge (e.g. detector bounding-box jitter
+            // on an otherwise stationary target) would flicker in and out of correcting every tick.
+            var locked = false
+
             try {
                 while (isActive) {
                     val readR = camR.read(frameR)
@@ -150,11 +161,14 @@ abstract class StereoPanTracker(
                             smoothedError!! * (1.0 - smoothingAlpha) + angleToTarget * smoothingAlpha
                         }
 
-                        if (abs(smoothedError!!) > deadbandDeg) {
+                        val error = smoothedError!!
+                        if (locked && abs(error) > reacquireDeg) locked = false
+
+                        if (!locked && abs(error) > deadbandDeg) {
                             // Rate-limit: move at most maxStepDeg per tick toward the target, regardless of
                             // how large the computed error is — a second line of defense against any single
                             // noisy detection swinging the head too far.
-                            val step = smoothedError!!.coerceIn(-maxStepDeg, maxStepDeg)
+                            val step = error.coerceIn(-maxStepDeg, maxStepDeg)
                             var newTarget = (ctrl.targetAngle + step).toFloat()
 
                             // Hard stop if a limit switch is physically triggered —
@@ -179,14 +193,19 @@ abstract class StereoPanTracker(
 
                             ctrl.targetAngle = newTarget
                             println("$logTag: target at (%.3f, %.3f, %.3f)m, error=%.1f° → step to %.1f°".format(
-                                pos3D[0], pos3D[1], pos3D[2], smoothedError, newTarget
+                                pos3D[0], pos3D[1], pos3D[2], error, newTarget
                             ))
+                        } else if (!locked) {
+                            // Within deadband and not yet locked — latch so subsequent jitter up to
+                            // reacquireDeg is ignored instead of re-triggering a correction each tick.
+                            locked = true
                         }
                     } else if (++missCount > missToleranceTicks) {
                         // Missed for longer than the grace period — give up and hold current
                         // position so the motor has nothing to chase.
                         targetPosition3D = null
                         smoothedError = null
+                        locked = false
                         ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                     }
                     // else: within the miss-tolerance grace period — coast toward the last commanded
