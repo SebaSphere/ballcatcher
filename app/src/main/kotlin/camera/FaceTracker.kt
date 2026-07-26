@@ -15,14 +15,18 @@ import java.io.File
  * Tracks the largest, most-confident detected face using both stereo cameras. See [StereoPanTracker]
  * for the shared control loop.
  *
+ * Face position is averaged over a trailing 3 s window (see `bearingWindowMs`) so the head settles
+ * precisely on a stationary person instead of chasing per-frame Haar box jitter. That averaging happens
+ * on the face's absolute bearing in [StereoPanTracker], not on raw pixel coordinates — see the comment
+ * there for why the distinction matters while the head is panning.
+ *
  * @param minDetectionConfidence Minimum Haar cascade level-weight (roughly a log-likelihood; higher is
  *                               stronger) for a detection to be trusted. Marginal detections below this
  *                               are treated as no detection at all, rather than feeding a shaky low-
- *                               confidence position into the control loop. Defaults to 0.0 (effectively
- *                               disabled) because the real range of weights this cascade reports varies
- *                               by camera/lighting and can't be guessed — watch the console for
- *                               "rejected" log lines after raising this above 0 to see what values your
- *                               setup actually produces, then tune from there.
+ *                               confidence position into the control loop. The weights this cascade
+ *                               reports vary by camera and lighting, so this is tuned by observation:
+ *                               watch the console for "rejected ... weights=[...]" lines to see what
+ *                               your setup actually produces, then raise or lower it from there.
  */
 class FaceTracker(
     yawController: YawJointController,
@@ -30,16 +34,17 @@ class FaceTracker(
     leftCameraId: Int = 2,
     cameraVFov: Double = 67.0,
     baselineMeters: Double = 0.12,
-    deadbandDeg: Double = 2.0,
+    deadbandDeg: Double = 1.0,
     updateIntervalMs: Long = 100L,
-    smoothingAlpha: Double = 0.5,
+    smoothingAlpha: Double = 1.0,
     flipPanDirection: Boolean = false,
     boundMarginDeg: Double = 5.0,
     trackingMaxFreq: Int = 100,
     maxStepDeg: Double = 8.0,
     missToleranceTicks: Int = 5,
-    reacquireDeg: Double = 5.0,
-    private val minDetectionConfidence: Double = 0.0,
+    reacquireDeg: Double = 1.5,
+    bearingWindowMs: Long = 3000L,
+    private val minDetectionConfidence: Double = -1.0,
 ) : StereoPanTracker(
     yawController = yawController,
     rightCameraId = rightCameraId,
@@ -55,6 +60,7 @@ class FaceTracker(
     maxStepDeg = maxStepDeg,
     missToleranceTicks = missToleranceTicks,
     reacquireDeg = reacquireDeg,
+    bearingWindowMs = bearingWindowMs,
     logTag = "FaceTracker",
 ) {
     companion object {

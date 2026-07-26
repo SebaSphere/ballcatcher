@@ -46,6 +46,13 @@ import kotlin.math.tan
  *                         threshold before tracking resumes (default equal to deadbandDeg — no
  *                         hysteresis). This is a Schmitt trigger: it stops small jitter right at the
  *                         deadband edge from causing repeated tiny corrections while already on target.
+ * @param proportionalGain Fraction of the measured error commanded per tick (default 0.5). Values < 1
+ *                         damp overshoot from capture/actuation latency; each tick re-measures, so the
+ *                         head converges by repeated shrinking micro-adjustments rather than one jump.
+ * @param bearingWindowMs  If > 0, average the target's *absolute bearing* over this trailing time
+ *                         window instead of using the latest reading (default 0 = off). Averaging
+ *                         absolute bearing rather than raw pixel offset is what makes this safe while
+ *                         the head is panning — see the note at the averaging code below.
  * @param logTag           Prefix used in log lines so it's clear which tracker is running.
  */
 abstract class StereoPanTracker(
@@ -63,6 +70,8 @@ abstract class StereoPanTracker(
     private val maxStepDeg: Double = 4.0,
     private val missToleranceTicks: Int = 0,
     private val reacquireDeg: Double = deadbandDeg,
+    private val proportionalGain: Double = 0.5,
+    private val bearingWindowMs: Long = 0L,
     private val logTag: String = "StereoPanTracker",
 ) {
     companion object {
@@ -118,6 +127,9 @@ abstract class StereoPanTracker(
             var smoothedError: Double? = null
             var missCount = 0
 
+            // Trailing window of (timestampMs, absolute bearing) samples, used when bearingWindowMs > 0.
+            val bearingHistory = ArrayDeque<Pair<Long, Double>>()
+
             // Schmitt-trigger lock: once the error falls within deadbandDeg we latch "locked" and
             // ignore further corrections until the error grows past the wider reacquireDeg. Without
             // this, an error hovering right at the deadband edge (e.g. detector bounding-box jitter
@@ -133,6 +145,11 @@ abstract class StereoPanTracker(
                         delay(updateIntervalMs)
                         continue
                     }
+
+                    // Sampled here, before detection runs, so it reflects where the head was pointing
+                    // when these frames were actually captured — detection takes long enough that the
+                    // head can have panned a degree or two by the time it finishes.
+                    val angleAtCapture = yawController.motorFeedback.currentAngle
 
                     // A detector bug/quirk (e.g. a native binding edge case on zero detections) throwing
                     // here shouldn't kill the whole tracking coroutine — treat it as a missed frame.
@@ -164,32 +181,62 @@ abstract class StereoPanTracker(
                         val rawAngle = (angleOffsetL + angleOffsetR) / 2.0
                         val angleToTarget = if (flipPanDirection) -rawAngle else rawAngle
 
-                        // Exponential smoothing on the raw offset itself to damp out noisy detections
-                        smoothedError = if (smoothedError == null) {
-                            angleToTarget
+                        // Convert the camera-relative offset into an absolute bearing before averaging.
+                        // Raw pixel offsets are only meaningful relative to the head orientation that
+                        // produced them, so averaging them across a window during which the head panned
+                        // would blend measurements from different frames of reference and lag behind by
+                        // however far the head travelled. Absolute bearing is head-motion invariant, so
+                        // a stationary target yields a constant value no matter how the head moves.
+                        val absoluteBearing = angleAtCapture + angleToTarget
+
+                        val targetBearing = if (bearingWindowMs > 0) {
+                            val now = System.currentTimeMillis()
+                            bearingHistory.addLast(now to absoluteBearing)
+                            while (bearingHistory.isNotEmpty() && now - bearingHistory.first().first > bearingWindowMs) {
+                                bearingHistory.removeFirst()
+                            }
+                            bearingHistory.sumOf { it.second } / bearingHistory.size
                         } else {
-                            smoothedError!! * (1.0 - smoothingAlpha) + angleToTarget * smoothingAlpha
+                            absoluteBearing
+                        }
+
+                        // Error is recomputed against the live angle (not the angle at capture) so it
+                        // accounts for movement already made toward the target since the frame was taken.
+                        val currentAngle = yawController.motorFeedback.currentAngle
+                        val rawError = targetBearing - currentAngle
+
+                        // Exponential smoothing to damp out noisy detections
+                        smoothedError = if (smoothedError == null) {
+                            rawError
+                        } else {
+                            smoothedError!! * (1.0 - smoothingAlpha) + rawError * smoothingAlpha
                         }
 
                         val error = smoothedError!!
                         if (locked && abs(error) > reacquireDeg) locked = false
 
                         if (!locked && abs(error) > deadbandDeg) {
-                            // Rate-limit: move at most maxStepDeg per tick toward the target, regardless of
-                            // how large the computed error is — a second line of defense against any single
-                            // noisy detection swinging the head too far.
-                            val step = error.coerceIn(-maxStepDeg, maxStepDeg)
-                            var newTarget = (ctrl.targetAngle + step).toFloat()
+                            // Command a fraction of the remaining error, anchored to where the head
+                            // actually IS — never accumulated onto ctrl.targetAngle. The motor lags well
+                            // behind targetAngle during a correction (freq is capped at trackingMaxFreq),
+                            // so adding each new error onto the previous, unreached target compounds every
+                            // tick: the setpoint runs away far past the target and the head sails past it
+                            // before unwinding. Re-anchoring each tick makes the command self-correcting —
+                            // as the head closes in, the error shrinks and so do the steps.
+                            val step = (error * proportionalGain).coerceIn(-maxStepDeg, maxStepDeg)
+                            var newTarget = (currentAngle + step).toFloat()
 
-                            // Hard stop if a limit switch is physically triggered —
-                            // clamp to current position so the motor stops immediately.
+                            // Hard stop if a limit switch is physically triggered — clamp to the current
+                            // position so the motor stops immediately. Direction comes from the sign of
+                            // the step (negative = toward the left switch), matching how tick() derives
+                            // direction from targetAngle - currentAngle.
                             val feedback = yawController.motorFeedback
-                            if (feedback.isAtLeftSwitch && newTarget < ctrl.targetAngle) {
+                            if (feedback.isAtLeftSwitch && step < 0) {
                                 println("$logTag: left limit switch triggered — blocking further left movement")
-                                newTarget = ctrl.targetAngle
-                            } else if (feedback.isAtRightSwitch && newTarget > ctrl.targetAngle) {
+                                newTarget = currentAngle.toFloat()
+                            } else if (feedback.isAtRightSwitch && step > 0) {
                                 println("$logTag: right limit switch triggered — blocking further right movement")
-                                newTarget = ctrl.targetAngle
+                                newTarget = currentAngle.toFloat()
                             } else {
                                 // Soft bounds: stay boundMarginDeg inside each calibrated limit
                                 val leftBound = yawController.calibratedLeftAngle
@@ -202,8 +249,8 @@ abstract class StereoPanTracker(
                             }
 
                             ctrl.targetAngle = newTarget
-                            println("$logTag: target at (%.3f, %.3f, %.3f)m, error=%.1f° → step to %.1f°".format(
-                                pos3D[0], pos3D[1], pos3D[2], error, newTarget
+                            println("$logTag: bearing=%.1f° (avg of %d), at=%.1f°, error=%.1f° → %.1f°".format(
+                                targetBearing, bearingHistory.size.coerceAtLeast(1), currentAngle, error, newTarget
                             ))
                         } else if (!locked) {
                             // Within deadband and not yet locked — latch so subsequent jitter up to
@@ -216,6 +263,7 @@ abstract class StereoPanTracker(
                         targetPosition3D = null
                         smoothedError = null
                         locked = false
+                        bearingHistory.clear()
                         ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                     }
                     // else: within the miss-tolerance grace period — coast toward the last commanded
