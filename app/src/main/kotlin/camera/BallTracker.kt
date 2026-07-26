@@ -122,10 +122,15 @@ class BallTracker(
                         val pos3D = triangulate(centerL, centerR, w, h, leftPos, rightPos, forward, up)
                         ballPosition3D = pos3D
 
-                        // Horizontal angle to the ball from the head's forward axis
-                        // flipPanDirection negates X if cameras are physically swapped
-                        val ballX = if (flipPanDirection) -pos3D[0] else pos3D[0]
-                        val angleToball = Math.toDegrees(atan2(ballX, pos3D[2]))
+                        // Drive yaw off each camera's own pixel offset from its image center, averaged,
+                        // rather than off the triangulated pos3D[0]/pos3D[2]. Triangulated depth (pos3D[2])
+                        // can read near zero on a bad frame, sending atan2(x, z) to a wild angle — pixel
+                        // offset has no such singularity, and since we only pan (no tilt/depth-dependent
+                        // move), we don't need the triangulated bearing to drive the motor at all.
+                        val angleOffsetL = angularOffsetDeg(centerL, w, h)
+                        val angleOffsetR = angularOffsetDeg(centerR, w, h)
+                        val rawAngle = (angleOffsetL + angleOffsetR) / 2.0
+                        val angleToball = if (flipPanDirection) -rawAngle else rawAngle
 
                         // Exponential smoothing on the raw offset itself to damp out noisy detections
                         smoothedError = if (smoothedError == null) {
@@ -136,8 +141,8 @@ class BallTracker(
 
                         if (abs(smoothedError!!) > deadbandDeg) {
                             // Rate-limit: move at most maxStepDeg per tick toward the ball, regardless of how
-                            // large the computed error is. This is what keeps a single bad triangulation (e.g.
-                            // a near-zero depth reading) from snapping the head to a wild absolute angle.
+                            // large the computed error is — a second line of defense against any single
+                            // noisy detection (e.g. a stray green pixel blob) swinging the head too far.
                             val step = smoothedError!!.coerceIn(-maxStepDeg, maxStepDeg)
                             var newTarget = (ctrl.targetAngle + step).toFloat()
 
@@ -214,6 +219,18 @@ class BallTracker(
         val m = Imgproc.moments(largest)
         if (m.m00 == 0.0) return null
         return Point(m.m10 / m.m00, m.m01 / m.m00)
+    }
+
+    // ── Single-camera horizontal bearing (used to drive yaw directly) ───────
+
+    /** Horizontal angle in degrees from this camera's own optical axis to the pixel, ignoring depth. */
+    private fun angularOffsetDeg(center: Point, width: Double, height: Double): Double {
+        val aspect = width / height
+        val tanHalfVfov = tan(Math.toRadians(cameraVFov) / 2.0)
+        val tanHalfHfov = aspect * tanHalfVfov
+        val nx = (center.x - width / 2.0) / (width / 2.0)
+        val dx = nx * tanHalfHfov
+        return Math.toDegrees(atan2(dx, 1.0))
     }
 
     // ── Stereo triangulation (math ported from opencv/TriangulateApp.kt) ────
