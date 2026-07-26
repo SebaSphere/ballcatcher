@@ -38,6 +38,8 @@ import kotlin.math.tan
  * @param flipPanDirection Set true if the head pans the wrong way — swaps which camera is treated as left/right.
  * @param boundMarginDeg   Soft safety margin in degrees kept inside each calibrated limit (default 5°).
  * @param trackingMaxFreq  Max motor pulse frequency during tracking in Hz (default 100 — avoids step-skipping).
+ * @param maxStepDeg       Max degrees the target angle may move per update tick (default 4°). Caps how far
+ *                         a single bad detection/triangulation can push the head, regardless of the computed error.
  */
 class BallTracker(
     private val yawController: YawJointController,
@@ -51,6 +53,7 @@ class BallTracker(
     private val flipPanDirection: Boolean = false,
     private val boundMarginDeg: Double = 5.0,
     private val trackingMaxFreq: Int = 100,
+    private val maxStepDeg: Double = 4.0,
 ) {
     companion object {
         init {
@@ -96,8 +99,9 @@ class BallTracker(
             val frameR = Mat()
             val frameL = Mat()
 
-            // Smoothed absolute target angle; initialised to current head angle on first detection
-            var smoothedTargetAngle: Double? = null
+            // Smoothed instantaneous angular error (offset of the ball from head-forward), not an absolute target —
+            // this is what gets rate-limited into a step, so a single bad reading can't jump the target far.
+            var smoothedError: Double? = null
 
             try {
                 while (isActive) {
@@ -123,21 +127,19 @@ class BallTracker(
                         val ballX = if (flipPanDirection) -pos3D[0] else pos3D[0]
                         val angleToball = Math.toDegrees(atan2(ballX, pos3D[2]))
 
-                        // Base off ctrl.targetAngle (where we're heading), not currentAngle (where we are).
-                        // Using currentAngle causes oscillation: motor is mid-move, we add another correction,
-                        // overshoot, detect opposite error, repeat.
-                        val rawTarget = ctrl.targetAngle + angleToball
-
-                        // Exponential smoothing to damp out noisy detections
-                        smoothedTargetAngle = if (smoothedTargetAngle == null) {
-                            rawTarget
+                        // Exponential smoothing on the raw offset itself to damp out noisy detections
+                        smoothedError = if (smoothedError == null) {
+                            angleToball
                         } else {
-                            smoothedTargetAngle!! * (1.0 - smoothingAlpha) + rawTarget * smoothingAlpha
+                            smoothedError!! * (1.0 - smoothingAlpha) + angleToball * smoothingAlpha
                         }
 
-                        val error = smoothedTargetAngle!! - ctrl.targetAngle
-                        if (abs(error) > deadbandDeg) {
-                            var newTarget = smoothedTargetAngle!!.toFloat()
+                        if (abs(smoothedError!!) > deadbandDeg) {
+                            // Rate-limit: move at most maxStepDeg per tick toward the ball, regardless of how
+                            // large the computed error is. This is what keeps a single bad triangulation (e.g.
+                            // a near-zero depth reading) from snapping the head to a wild absolute angle.
+                            val step = smoothedError!!.coerceIn(-maxStepDeg, maxStepDeg)
+                            var newTarget = (ctrl.targetAngle + step).toFloat()
 
                             // Hard stop if a limit switch is physically triggered —
                             // clamp to current position so the motor stops immediately.
@@ -160,14 +162,14 @@ class BallTracker(
                             }
 
                             ctrl.targetAngle = newTarget
-                            println("BallTracker: ball at (%.3f, %.3f, %.3f)m → pan to %.1f°".format(
-                                pos3D[0], pos3D[1], pos3D[2], newTarget
+                            println("BallTracker: ball at (%.3f, %.3f, %.3f)m, error=%.1f° → step to %.1f°".format(
+                                pos3D[0], pos3D[1], pos3D[2], smoothedError, newTarget
                             ))
                         }
                     } else {
                         // Ball not seen — hold current position so the motor has nothing to chase
                         ballPosition3D = null
-                        smoothedTargetAngle = null
+                        smoothedError = null
                         ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                     }
 
