@@ -23,8 +23,9 @@ data class FisheyeCalibrationResult(
             appendLine("KL=${matToString(kL)}")
             appendLine("DL=${matToString(dL)}")
         }
-        File(path).writeText(lines)
-        println("FisheyeCalibrator: calibration saved to $path")
+        val file = File(path)
+        file.writeText(lines)
+        println("FisheyeCalibrator: calibration saved to ${file.absolutePath}")
     }
 
     companion object {

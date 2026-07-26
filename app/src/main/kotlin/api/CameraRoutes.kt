@@ -55,12 +55,19 @@ fun Route.cameraRoutes(controller: YawJointController) {
         post("/fisheye-calibrate") {
             val request = call.receive<FisheyeCalibrateRequest>()
             val boardSize = org.opencv.core.Size(request.boardWidth.toDouble(), request.boardHeight.toDouble())
-            withContext(Dispatchers.IO) {
-                FisheyeCalibrator(boardSize)
-                    .calibrate(request.imageDir)
-                    .save(FISHEYE_CALIBRATION_PATH)
+            val savePath = java.io.File(FISHEYE_CALIBRATION_PATH).absolutePath
+            try {
+                withContext(Dispatchers.IO) {
+                    FisheyeCalibrator(boardSize)
+                        .calibrate(request.imageDir)
+                        .save(FISHEYE_CALIBRATION_PATH)
+                }
+                call.respond(CommandResponse(true, "Fisheye calibration complete — saved to $savePath"))
+            } catch (e: Exception) {
+                println("CameraRoutes: fisheye calibration failed — ${e.message}")
+                e.printStackTrace()
+                call.respond(HttpStatusCode.InternalServerError, CommandResponse(false, "Fisheye calibration failed: ${e.message}"))
             }
-            call.respond(CommandResponse(true, "Fisheye calibration complete — saved to $FISHEYE_CALIBRATION_PATH"))
         }
 
         post("/calibration-capture") {
