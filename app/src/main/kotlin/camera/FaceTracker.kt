@@ -18,10 +18,11 @@ import java.io.File
  * @param minDetectionConfidence Minimum Haar cascade level-weight (roughly a log-likelihood; higher is
  *                               stronger) for a detection to be trusted. Marginal detections below this
  *                               are treated as no detection at all, rather than feeding a shaky low-
- *                               confidence position into the control loop. This value is tuned by feel —
- *                               log the reported confidence during a test run and adjust if faces are
- *                               being rejected too often (lower it) or weak false positives get through
- *                               (raise it).
+ *                               confidence position into the control loop. Defaults to 0.0 (effectively
+ *                               disabled) because the real range of weights this cascade reports varies
+ *                               by camera/lighting and can't be guessed — watch the console for
+ *                               "rejected" log lines after raising this above 0 to see what values your
+ *                               setup actually produces, then tune from there.
  */
 class FaceTracker(
     yawController: YawJointController,
@@ -38,7 +39,7 @@ class FaceTracker(
     maxStepDeg: Double = 8.0,
     missToleranceTicks: Int = 5,
     reacquireDeg: Double = 5.0,
-    private val minDetectionConfidence: Double = 3.0,
+    private val minDetectionConfidence: Double = 0.0,
 ) : StereoPanTracker(
     yawController = yawController,
     rightCameraId = rightCameraId,
@@ -93,7 +94,13 @@ class FaceTracker(
         val bestIndex = faceArr.indices
             .filter { weights.getOrElse(it) { 0.0 } >= minDetectionConfidence }
             .maxByOrNull { faceArr[it].width.toLong() * faceArr[it].height }
-            ?: return null
+
+        if (bestIndex == null) {
+            if (faceArr.isNotEmpty()) {
+                println("FaceTracker: rejected ${faceArr.size} detection(s) below minDetectionConfidence=$minDetectionConfidence — weights=${weights.toList()}")
+            }
+            return null
+        }
 
         val best = faceArr[bestIndex]
         return Point(best.x + best.width / 2.0, best.y + best.height / 2.0)
