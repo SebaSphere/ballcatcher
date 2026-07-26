@@ -38,6 +38,10 @@ import kotlin.math.tan
  * @param trackingMaxFreq  Max motor pulse frequency during tracking in Hz (default 100 — avoids step-skipping).
  * @param maxStepDeg       Max degrees the target angle may move per update tick (default 4°). Caps how far
  *                         a single bad detection can push the head, regardless of the computed error.
+ * @param missToleranceTicks Number of consecutive missed detections to tolerate before giving up and
+ *                           holding position (default 0 — freeze immediately on any miss). Detectors
+ *                           that flicker frame-to-frame (e.g. a Haar cascade) benefit from a small
+ *                           grace period so a single dropped frame doesn't stop tracking.
  * @param logTag           Prefix used in log lines so it's clear which tracker is running.
  */
 abstract class StereoPanTracker(
@@ -53,6 +57,7 @@ abstract class StereoPanTracker(
     private val boundMarginDeg: Double = 5.0,
     private val trackingMaxFreq: Int = 100,
     private val maxStepDeg: Double = 4.0,
+    private val missToleranceTicks: Int = 0,
     private val logTag: String = "StereoPanTracker",
 ) {
     companion object {
@@ -106,6 +111,7 @@ abstract class StereoPanTracker(
             // absolute target — this is what gets rate-limited into a step, so a single bad reading
             // can't jump the target far.
             var smoothedError: Double? = null
+            var missCount = 0
 
             try {
                 while (isActive) {
@@ -121,6 +127,7 @@ abstract class StereoPanTracker(
                     val centerR = detectCentroid(frameR)
 
                     if (centerL != null && centerR != null) {
+                        missCount = 0
                         val w = frameL.cols().toDouble()
                         val h = frameL.rows().toDouble()
                         val pos3D = triangulate(centerL, centerR, w, h, leftPos, rightPos, forward, up)
@@ -175,12 +182,15 @@ abstract class StereoPanTracker(
                                 pos3D[0], pos3D[1], pos3D[2], smoothedError, newTarget
                             ))
                         }
-                    } else {
-                        // Target not seen — hold current position so the motor has nothing to chase
+                    } else if (++missCount > missToleranceTicks) {
+                        // Missed for longer than the grace period — give up and hold current
+                        // position so the motor has nothing to chase.
                         targetPosition3D = null
                         smoothedError = null
                         ctrl.targetAngle = yawController.motorFeedback.currentAngle.toFloat()
                     }
+                    // else: within the miss-tolerance grace period — coast toward the last commanded
+                    // target instead of resetting, so a single flickered detection doesn't stop tracking.
 
                     delay(updateIntervalMs)
                 }
