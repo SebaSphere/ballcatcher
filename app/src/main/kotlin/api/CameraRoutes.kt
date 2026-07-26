@@ -5,6 +5,7 @@ import dev.sebastianb.ballcatcher.app.camera.FisheyeCalibrationResult
 import dev.sebastianb.ballcatcher.app.camera.FisheyeCalibrator
 import dev.sebastianb.ballcatcher.app.camera.FisheyeUndistorter
 import dev.sebastianb.ballcatcher.app.camera.BallTracker
+import dev.sebastianb.ballcatcher.app.camera.FaceTracker
 import dev.sebastianb.ballcatcher.app.camera.RawPhotoCapture
 import dev.sebastianb.ballcatcher.app.camera.ScanCycle
 import dev.sebastianb.ballcatcher.app.camera.StereoCalibrationCapture
@@ -40,6 +41,9 @@ private const val FISHEYE_CALIBRATION_PATH = "fisheye_calibration.yml"
 data class TrackBallRequest(val flipPanDirection: Boolean = false)
 
 @Serializable
+data class TrackFaceRequest(val flipPanDirection: Boolean = false)
+
+@Serializable
 data class ScanCycleRequest(
     val count: Int,
     val cycles: Int = 1,
@@ -50,6 +54,7 @@ data class ScanCycleRequest(
 fun Route.cameraRoutes(controller: YawJointController) {
     val cameraScope = CoroutineScope(Dispatchers.Default)
     var ballTracker: BallTracker? = null
+    var faceTracker: FaceTracker? = null
 
     route("/camera") {
         post("/fisheye-calibrate") {
@@ -107,6 +112,30 @@ fun Route.cameraRoutes(controller: YawJointController) {
                 tracker.stop()
                 ballTracker = null
                 call.respond(CommandResponse(true, "Ball tracking stopped"))
+            }
+        }
+
+        route("/track-face") {
+            post("/start") {
+                if (faceTracker?.isTracking == true) {
+                    call.respond(HttpStatusCode.Conflict, CommandResponse(false, "Face tracking is already active"))
+                    return@post
+                }
+                val request = call.receive<TrackFaceRequest>()
+                faceTracker = FaceTracker(controller, flipPanDirection = request.flipPanDirection)
+                faceTracker!!.start(cameraScope)
+                call.respond(CommandResponse(true, "Face tracking started (flipPanDirection=${request.flipPanDirection})"))
+            }
+
+            post("/stop") {
+                val tracker = faceTracker
+                if (tracker == null || !tracker.isTracking) {
+                    call.respond(HttpStatusCode.Conflict, CommandResponse(false, "Face tracking is not active"))
+                    return@post
+                }
+                tracker.stop()
+                faceTracker = null
+                call.respond(CommandResponse(true, "Face tracking stopped"))
             }
         }
 

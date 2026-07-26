@@ -373,6 +373,67 @@ paths:
               schema:
                 $ref: "#/components/schemas/CommandResponse"
 
+  /api/camera/track-face/start:
+    post:
+      tags: [Camera]
+      summary: Start stereo face tracking
+      description: |
+        Opens both cameras and begins a continuous tracking loop. Each frame, the largest face is
+        detected in both images via a Haar cascade classifier, then triangulated into a 3D position
+        using the 120 mm stereo baseline for reporting. The head pans to keep the face centred,
+        driven off each camera's own pixel offset from center (averaged), not the triangulated depth.
+
+        Returns immediately — tracking runs in the background.
+        Call `/api/camera/track-face/stop` to end the session.
+
+        **Prerequisites:** `/api/motor/calibrate-home` should be run first so pan is clamped
+        to the safe angular range.
+
+        If the head pans the wrong direction, set `flipPanDirection: true` to invert the correction.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                flipPanDirection:
+                  type: boolean
+                  default: false
+                  description: Set true if the head tracks away from the face instead of toward it.
+      responses:
+        "200":
+          description: Tracking started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+        "409":
+          description: Tracking is already active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
+  /api/camera/track-face/stop:
+    post:
+      tags: [Camera]
+      summary: Stop stereo face tracking
+      description: Cancels the background tracking loop and releases both cameras.
+      responses:
+        "200":
+          description: Tracking stopped
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+        "409":
+          description: Tracking is not currently active
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommandResponse"
+
   /api/motor/enable:
     post:
       tags: [Motor]
