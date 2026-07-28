@@ -15,10 +15,28 @@ import java.io.File
  * Tracks the largest, most-confident detected face using both stereo cameras. See [StereoPanTracker]
  * for the shared control loop.
  *
- * Face position is averaged over a trailing 3 s window (see `bearingWindowMs`) so the head settles
+ * Face position is averaged over a trailing 1.5 s window (see `bearingWindowMs`) so the head settles
  * precisely on a stationary person instead of chasing per-frame Haar box jitter. That averaging happens
  * on the face's absolute bearing in [StereoPanTracker], not on raw pixel coordinates — see the comment
  * there for why the distinction matters while the head is panning.
+ *
+ * Three defaults here are deliberately faster than [StereoPanTracker]'s, and together they set how
+ * quickly the head reacts. They trade settle precision for responsiveness, so treat them as a set:
+ *
+ *  - `bearingWindowMs` (1.5 s) — a trailing average lags a *moving* face by roughly half its window,
+ *    so this is the single largest source of reaction delay. Shrink it for snappier tracking, grow it
+ *    if the head visibly hunts around a stationary person.
+ *  - `proportionalGain` (0.75) — each tick commands this fraction of the remaining error, so the error
+ *    decays by `(1 - gain)` per tick: 0.75 converges in half the ticks 0.5 would take. Keep it below
+ *    1.0 — at 1.0 the loop commands the entire measured error every tick with no damping for
+ *    capture/actuation latency, which invites overshoot and hunting.
+ *  - `trackingMaxFreq` (200 Hz) — the pulse-rate ceiling, and the real limit on physical slew speed.
+ *    At 0.3°/step (1200 steps/rev) this is 60°/s, versus 30°/s at 100 Hz. Homing already drives the
+ *    motor continuously at 200 Hz, so this rate is within what the stepper handles without skipping.
+ *
+ * `maxStepDeg` is intentionally *not* raised alongside these: at 200 Hz the motor covers at most ~6°
+ * in one 100 ms tick, so the existing 8° cap already sits above what the hardware can execute per tick
+ * and no longer binds. It stays as a backstop against a single wild detection.
  *
  * @param minDetectionConfidence Minimum Haar cascade level-weight (roughly a log-likelihood; higher is
  *                               stronger) for a detection to be trusted. Marginal detections below this
@@ -39,11 +57,12 @@ class FaceTracker(
     smoothingAlpha: Double = 1.0,
     flipPanDirection: Boolean = false,
     boundMarginDeg: Double = 5.0,
-    trackingMaxFreq: Int = 100,
+    trackingMaxFreq: Int = 200,
     maxStepDeg: Double = 8.0,
     missToleranceTicks: Int = 5,
     reacquireDeg: Double = 1.5,
-    bearingWindowMs: Long = 3000L,
+    proportionalGain: Double = 0.75,
+    bearingWindowMs: Long = 1500L,
     private val minDetectionConfidence: Double = -1.0,
 ) : StereoPanTracker(
     yawController = yawController,
@@ -60,6 +79,7 @@ class FaceTracker(
     maxStepDeg = maxStepDeg,
     missToleranceTicks = missToleranceTicks,
     reacquireDeg = reacquireDeg,
+    proportionalGain = proportionalGain,
     bearingWindowMs = bearingWindowMs,
     logTag = "FaceTracker",
 ) {
